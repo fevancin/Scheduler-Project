@@ -1,0 +1,114 @@
+# Aggiungere un oggetto per ogni processo risolutivo. Le proprietà già
+# presenti nel template di base saranno sovrascritte. La chiave dell'oggetto
+# diventerà parte del nome della cartella contenente i risultati.
+groups:
+    fat_slim:
+        structure_type: 'fat-slim'
+        core_type: 'pruned'
+    fat_fat:
+        structure_type: 'fat-fat'
+        core_type: 'pruned'
+    slim_fat_pruned:
+        structure_type: 'slim-fat'
+        core_type: 'pruned'
+    
+    slim_fat_reduced:
+        structure_type: 'slim-fat'
+        core_type: 'reduced'
+    slim_fat_basic:
+        structure_type: 'slim-fat'
+        core_type: 'basic'
+
+# Template di base che sarà ripetuto per ognuno dei processi: i valori già
+# presenti verranno sovrascritti.
+base:
+
+    # Elenco dei nomi di processi da eseguire e da evitare. Aggiungere 'all' per
+    # selezionare tutto.
+    configs_to_do: ['all']
+    configs_to_avoid: []
+
+    # Elenco dei nomi di gruppi di istanze da eseguire e da evitare. Aggiungere
+    # 'all' per selezionare tutto.
+    groups_to_do: ['all']
+    groups_to_avoid: []
+
+    # Elenco dei nomi di istanze da eseguire e da evitare. Aggiungere 'all'
+    # per selezionare tutto.
+    instances_to_do: ['all']
+    instances_to_avoid: []
+
+    # Informazioni sul calcolo dei core (tagli di correttezza)
+    core_type: 'pruned' # generalist, basic, reduced, pruned
+    # core_patient_expansion: False
+    # core_service_expansion: False
+    # core_operator_expansion: False # utile solo per master 'fat'
+    # core_day_expansion: False
+
+    # Flag che controll l'utilizzo della cache per ottenere soluzioni da
+    # risultati precedenti
+    use_cache: True
+
+    # Numero massimo di iterazioni da eseguire
+    max_iteration: 50
+
+    # Tempo totale di risoluzione oltre il quale la risoluzione si fermerà.
+    # Questo valore non tiene conto dei tempi intermedi di scrittura su file.
+    total_time_limit: 7200
+
+    # Se la soluzione del sottoproblema raggiunge questa percentuale rispetto a
+    # quella proposta dal master la risoluzione si ferma
+    early_stop_optimum_approximation_percentage: 1.0
+
+    # Configurazione che specifica la struttura dei modelli della risoluzione.
+    # 'fat' specifica che ci sarà da prendere la decisione dell'operatore.
+    # Il primo valore della coppia descrive il master mentre il secondo il
+    # sottoproblema. Nella versione 'fat-fat' è inoltre possibile specificare la
+    # flag 'preemptive_forbidding' nelle informazioni aggiuntive del
+    # sottoproblema.
+    structure_type: 'fat-slim' # 'slim-fat', 'fat-slim', 'fat-fat'
+    
+    # Informazioni relative al solutore del problema master
+    master:
+        time_limit: 600 # in secondi
+        memory_limit: 16 # in GB
+        additional_info: [
+
+            # Penalizza in funzione obiettivo i pazienti che utilizzano tanti
+            # giorni. Questa flag impatta anche sul calcolo della cache
+            # provocando instabilità
+            # 'minimize_hospital_accesses'
+        ]
+    
+    # Informazioni relative al solutore del sottoproblema
+    subproblem:
+        time_limit: 30 # in secondi
+        memory_limit: 16 # in GB
+        additional_info: [
+
+            # Utilizzato solo nella versione 'fat'. La durata totale dei servizi
+            # assegnati ad un singolo operatore non può essere maggiore della
+            # durata dell'operatore stesso. Questo taglio coincide coi vincoli
+            # di capacità sull'operatore nel caso 'slim' e pertanto sarebbe
+            # duplicato.
+            'use_redundant_operator_cut',
+
+            # Utilizzato solo nella struttura 'fat-fat'. Se il sottoproblema
+            # soddisfa comunque tutte le richieste proposte dal master ma con
+            # operatori differenti (non avendo quindi la componente a 1000 della
+            # funzione obiettivo), aggiungi al master un taglio di tipo core
+            # per evitare nuovamente tale richiesta. Questo taglio è ridondante
+            # in quanto non impatta sul valore della funzione obiettivo finale.
+            'preemptive_forbidding'
+        ]
+    
+    # Informazioni relative al solutore della cache
+    cache:
+        time_limit: 60 # in secondi
+        memory_limit: 16 # in GB
+    
+    # Informazioni relative al solutore della potatura dei core
+    core_pruning:
+        time_limit: 30 # in secondi
+        memory_limit: 16 # in GB
+        additional_info: ['use_redundant_operator_cut']
