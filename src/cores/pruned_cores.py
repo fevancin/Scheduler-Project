@@ -104,9 +104,7 @@ def is_instance_fully_satisfiable(
         model = get_slim_subproblem_model(instance)
     else:
         model = get_fat_subproblem_model(instance, config['core_pruning']['additional_info'])
-
-    time_limit = 60
-
+    
     opt = pyo.SolverFactory('gurobi')
     opt.options['TimeLimit'] = config['core_pruning']['time_limit']
     opt.options['SoftMemLimit'] = config['core_pruning']['memory_limit']
@@ -114,7 +112,7 @@ def is_instance_fully_satisfiable(
     start = time.perf_counter()
     opt.solve(model, logfile=None)
     end = time.perf_counter()
-    if end - start > time_limit:
+    if end - start > config['core_pruning']['time_limit']:
         return True
 
     if isinstance(instance, FatSubproblemInstance):

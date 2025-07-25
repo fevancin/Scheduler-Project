@@ -7,6 +7,11 @@ from src.common.tools import is_combination_to_do
 def plot_result_value_vs_time(
         master_result_df: pd.DataFrame, subproblem_result_df: pd.DataFrame,
         results_path: Path, config):
+    
+    if 'cache_time' not in master_result_df:
+        master_result_df['cache_time'] = pd.Series(None, index=master_result_df.index)
+    if 'cache_objective_value' not in master_result_df:
+        master_result_df['cache_objective_value'] = pd.Series(None, index=master_result_df.index)
 
     master_result_df = master_result_df[['config', 'group', 'instance', 'iteration',
         'master_time', 'master_objective_value', 'cache_time', 'cache_objective_value', 'final_objective_value']]
