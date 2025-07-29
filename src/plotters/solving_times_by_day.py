@@ -26,7 +26,7 @@ def plot_solving_times_by_day(
 
         ax.scatter(not_sat['iteration'] - 1, not_sat['day'], marker='x', color='black', s=5)
         
-        ax.set_yticks(image.index, labels=image.index)
+        ax.set_yticks(image.index - 1, labels=image.index)
         ax.set_ylabel('Day')
         
         ax.set_xticks(image.columns - 1, labels=image.columns)

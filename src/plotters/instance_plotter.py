@@ -166,9 +166,11 @@ def plot_subproblem_results(
 
     operator_end_times: dict[OperatorName, TimeSlot] = {}
     for operator_name in instance.day.operators.keys():
-        operator_end_times[operator_name] = max(
-            r.time_slot + instance.services[r.service_name].duration
-            for r in result.scheduled if r.operator_name == operator_name)
+        end_times = [r.time_slot + instance.services[r.service_name].duration
+            for r in result.scheduled if r.operator_name == operator_name]
+        if len(end_times) == 0:
+            operator_end_times[operator_name] = 0
+        operator_end_times[operator_name] = max(end_times)
 
     max_operator_end_time = max(d for d in operator_end_times.values())
 

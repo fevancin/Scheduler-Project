@@ -2,22 +2,28 @@
 # presenti nel template di base saranno sovrascritte. La chiave dell'oggetto
 # diventerà parte del nome della cartella contenente i risultati.
 groups:
-    fat_slim:
+    minimize_days_fat_slim:
         structure_type: 'fat-slim'
         core_type: 'pruned'
-    fat_fat:
-        structure_type: 'fat-fat'
-        core_type: 'pruned'
-    slim_fat_pruned:
+    minimize_days_slim_fat:
         structure_type: 'slim-fat'
         core_type: 'pruned'
-    
-    slim_fat_reduced:
-        structure_type: 'slim-fat'
-        core_type: 'reduced'
-    slim_fat_basic:
-        structure_type: 'slim-fat'
-        core_type: 'basic'
+
+    # fat_slim:
+    #     structure_type: 'fat-slim'
+    #     core_type: 'pruned'
+    # fat_fat:
+    #     structure_type: 'fat-fat'
+    #     core_type: 'pruned'
+    # slim_fat_pruned:
+    #     structure_type: 'slim-fat'
+    #     core_type: 'pruned'
+    # slim_fat_reduced:
+    #     structure_type: 'slim-fat'
+    #     core_type: 'reduced'
+    # slim_fat_basic:
+    #     structure_type: 'slim-fat'
+    #     core_type: 'basic'
 
 # Template di base che sarà ripetuto per ognuno dei processi: i valori già
 # presenti verranno sovrascritti.
@@ -31,12 +37,21 @@ base:
     # Elenco dei nomi di gruppi di istanze da eseguire e da evitare. Aggiungere
     # 'all' per selezionare tutto.
     groups_to_do: ['all']
-    groups_to_avoid: []
+    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like',
+                      '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
 
     # Elenco dei nomi di istanze da eseguire e da evitare. Aggiungere 'all'
     # per selezionare tutto.
     instances_to_do: ['all']
     instances_to_avoid: []
+
+    # Configurazione che specifica la struttura dei modelli della risoluzione.
+    # 'fat' specifica che ci sarà da prendere la decisione dell'operatore.
+    # Il primo valore della coppia descrive il master mentre il secondo il
+    # sottoproblema. Nella versione 'fat-fat' è inoltre possibile specificare la
+    # flag 'preemptive_forbidding' nelle informazioni aggiuntive del
+    # sottoproblema.
+    structure_type: 'fat-slim' # 'slim-fat', 'fat-slim', 'fat-fat'
 
     # Informazioni sul calcolo dei core (tagli di correttezza)
     core_type: 'pruned' # generalist, basic, reduced, pruned
@@ -59,14 +74,6 @@ base:
     # Se la soluzione del sottoproblema raggiunge questa percentuale rispetto a
     # quella proposta dal master la risoluzione si ferma
     early_stop_optimum_approximation_percentage: 1.0
-
-    # Configurazione che specifica la struttura dei modelli della risoluzione.
-    # 'fat' specifica che ci sarà da prendere la decisione dell'operatore.
-    # Il primo valore della coppia descrive il master mentre il secondo il
-    # sottoproblema. Nella versione 'fat-fat' è inoltre possibile specificare la
-    # flag 'preemptive_forbidding' nelle informazioni aggiuntive del
-    # sottoproblema.
-    structure_type: 'fat-slim' # 'slim-fat', 'fat-slim', 'fat-fat'
     
     # Informazioni relative al solutore del problema master
     master:
@@ -77,7 +84,7 @@ base:
             # Penalizza in funzione obiettivo i pazienti che utilizzano tanti
             # giorni. Questa flag impatta anche sul calcolo della cache
             # provocando instabilità
-            # 'minimize_hospital_accesses'
+            'minimize_hospital_accesses'
         ]
     
     # Informazioni relative al solutore del sottoproblema
@@ -112,3 +119,8 @@ base:
         time_limit: 30 # in secondi
         memory_limit: 16 # in GB
         additional_info: ['use_redundant_operator_cut']
+    
+    # Informazioni relative al solutore dell'espansione dei core
+    core_expansion:
+        time_limit: 30 # in secondi
+        memory_limit: 16 # in GB
