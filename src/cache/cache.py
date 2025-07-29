@@ -1,6 +1,7 @@
 from src.common.custom_types import Cache, PatientServiceWindow, DayName, IterationDay
 from src.common.custom_types import MasterInstance, FinalResult, IterationName
 from src.common.custom_types import PatientServiceOperatorTimeSlot
+from src.common.custom_types import FatMasterResult, SlimMasterResult
 
 def is_request_already_present(
         cache: Cache,
@@ -29,7 +30,7 @@ def is_request_already_present(
         # Dalla seconda richiesta scarteremo le iterazioni che non permettono
         # di mantenere soddisfatte tutte le richieste incontrate fino ad ora
         else:
-            possible_values = {id for id in possible_values if id in cache[request]}
+            possible_values.intersection_update(cache[request])
         
         # Se non si hanno più iterazioni possibili allora la combinazione di
         # richieste è nuova
@@ -107,3 +108,62 @@ def fix_cache_final_result(master_instance: MasterInstance, final_result: FinalR
                     request = PatientServiceWindow(patient_name, service_name, window)
                     if request not in final_result.rejected:
                         final_result.rejected.append(PatientServiceWindow(patient_name, service_name, window))
+
+def get_previous_cache_day_iterations(
+        cache: Cache,
+        master_result: FatMasterResult | SlimMasterResult) -> dict[DayName, IterationName]:
+    '''Funzione che ritorna un dizionario [day, iteration] per tutti quei giorni
+    che sono già presenti in cache. Risulta valido anche un sottoinsieme di
+    richieste, per cui è necessario eliminare dai risultati quelle eventualmente
+    sovrabbondanti.'''
+
+    previous_cache_day_iterations: dict[DayName, IterationName] = {}
+
+    for day_name, requests in master_result.scheduled.items():
+        
+        # Elenco di (i, d) che possiedono tutte le richieste da aggiungere in
+        # cache (diminuiranno di volta in volta)
+        possible_values: set[IterationDay] | None = None
+    
+        # Ogni richiesta deve essere presente in una stessa iterazione
+        for request in requests:
+
+            # Se la cache non contiene ancora una delle richieste allora di sicuro
+            # la combinazione di richieste non è presente
+            request_in_cache = False
+            for psw in cache.keys():
+                if psw.patient_name == request.patient_name and psw.service_name == request.service_name:
+                    request_in_cache = True
+                    break
+            if not request_in_cache:
+                possible_values = set()
+                break
+            
+            # La prima richiesta popola le iterazioni possibili con tutte quelle che
+            # possiedono la richiesta
+            if possible_values is None:
+                possible_values = {id
+                    for psw, ids in cache.items() for id in ids
+                    if psw.patient_name == request.patient_name and
+                       psw.service_name == request.service_name and
+                       id.day_name == day_name}
+            
+            # Dalla seconda richiesta scarteremo le iterazioni che non permettono
+            # di mantenere soddisfatte tutte le richieste incontrate fino ad ora
+            else:
+                current_possible_values = {id
+                    for psw, ids in cache.items() for id in ids
+                    if psw.patient_name == request.patient_name and
+                       psw.service_name == request.service_name and
+                       id.day_name == day_name}
+                possible_values.intersection_update(current_possible_values)
+            
+            # Se non si hanno più iterazioni possibili allora la combinazione di
+            # richieste è nuova
+            if len(possible_values) == 0:
+                break
+
+        if possible_values is not None and len(possible_values) > 0:
+            previous_cache_day_iterations[day_name] = possible_values.pop().iteration_name
+
+    return previous_cache_day_iterations

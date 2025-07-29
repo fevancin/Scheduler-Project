@@ -69,14 +69,14 @@ class Window:
                 (window.start <= self.start and window.end >= self.start))
 
 @dataclass(unsafe_hash=True, eq=True)
-class ServiceWindow:
-    service_name: ServiceName
-    window: Window
-
-@dataclass(unsafe_hash=True, eq=True)
 class PatientService:
     patient_name: PatientName
     service_name: ServiceName
+
+@dataclass(unsafe_hash=True, eq=True)
+class ServiceWindow:
+    service_name: ServiceName
+    window: Window
 
 @dataclass(unsafe_hash=True, eq=True)
 class ServiceOperator:
@@ -231,3 +231,5 @@ class FatCore(AbstractCore):
             if component not in core.components:
                 return False
         return True
+
+type Arc = tuple[PatientService, PatientService] | tuple[PatientServiceOperator, PatientServiceOperator]

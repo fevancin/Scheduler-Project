@@ -14,10 +14,11 @@ logging.getLogger('pyomo.core').setLevel(logging.ERROR)
 from src.common.custom_types import MasterInstance, Cache, FatCore, SlimCore, DayName
 from src.common.custom_types import FatSubproblemResult, SlimSubproblemResult, FinalResult
 from src.common.custom_types import FatMasterResult, FatSubproblemInstance, SlimSubproblemInstance
-from src.common.custom_types import CacheMatch, PatientServiceOperator
+from src.common.custom_types import CacheMatch, PatientServiceOperator, IterationName
 from src.common.tools import get_subproblem_instance_from_master_result, compose_final_result
 from src.common.tools import is_combination_to_do, get_slim_subproblem_instance_from_fat
 from src.common.tools import get_worst_fat_case_scenario, get_worst_slim_case_scenario
+from src.common.tools import remove_requests_not_present
 from src.common.file_load_and_dump import decode_master_instance, encode_master_instance, encode_master_result
 from src.common.file_load_and_dump import encode_subproblem_instance, encode_subproblem_result
 from src.common.file_load_and_dump import encode_final_result, decode_subproblem_result, encode_cores, encode_cache_matching
@@ -37,6 +38,7 @@ from src.milp_models.subproblem_model import get_result_from_fat_subproblem_mode
 from src.milp_models.cache_model import get_cache_model, get_result_from_cache_model
 
 from src.cache.cache import add_final_result_to_cache, fix_cache_final_result
+from src.cache.cache import get_previous_cache_day_iterations
 
 from src.cores.generalist_cores import get_generalist_cores
 from src.cores.basic_cores import get_basic_fat_cores, get_basic_slim_cores
@@ -293,7 +295,7 @@ def solve_instance(
             # Creazione del modello MILP della cache
             print(f'[iter {iteration_index}] [CACHE] Start cache model creation...', end='')
             start = time.perf_counter()
-            cache_model = get_cache_model(master_instance, cache)
+            cache_model = get_cache_model(master_instance, cache, best_cache_result_value_so_far)
             end = time.perf_counter()
             print(f'done ({end - start:.04}s) ', end='')
 
@@ -344,12 +346,17 @@ def solve_instance(
                 with open(output_path.joinpath(f'best_final_result_so_far.json'), 'w') as file:
                     json.dump(encode_final_result(cache_final_result), file, indent=4)
         
+        if config['use_cache']:
+            previous_cache_day_iterations = get_previous_cache_day_iterations(cache, master_result)
+            if len(previous_cache_day_iterations) > 0:
+                print(f'[iter {iteration_index}] [CACHE] Found {len(previous_cache_day_iterations)} days already solved in cache')
+
         ############################## FINE CACHE ##############################
         
         ######################### INIZIO SOTTOPROBLEMA #########################
 
         all_subproblem_instances: dict[DayName, FatSubproblemInstance] | dict[DayName, SlimSubproblemInstance] = {}
-        all_subproblem_result: dict[DayName, FatSubproblemResult] | dict[DayName, SlimSubproblemResult] = {}
+        all_subproblem_result:  dict[DayName, SlimSubproblemResult] | dict[DayName, FatSubproblemResult] = {}
         
         for day_name in master_result.scheduled.keys():
             
@@ -370,41 +377,57 @@ def solve_instance(
                     print(f'[iter {iteration_index}] [SUB] ERROR: {error}')
                 return 4
 
-            # Crezione del modello MILP del giorno corrente
-            print(f'[iter {iteration_index}] [SUB] Start day {day_name} model creation...', end='')
-            start = time.perf_counter()
+            # Copia del risultato del giorno corrente se trovato nella cache
+            if config['use_cache'] and day_name in previous_cache_day_iterations: # type: ignore
 
-            # Se la struttura risolutiva è 'fat-fat' ed è selezionata l'opzione
-            # 'preemptive_forbidding'allora bisogna costruire l'istanza del
-            # sottoproblema dimenticandosi dei nomi degli operatori
-            if config['structure_type'] == 'fat-fat' and 'preemptive_forbidding' in config['subproblem']['additional_info']:
+                iteration_name: IterationName = previous_cache_day_iterations[day_name] # type: ignore
+
+                print(f'[iter {iteration_index}] [CACHE] Found day {day_name} already in cache (iter {iteration_name})')
                 
-                forgetful_subproblem_instance = get_slim_subproblem_instance_from_fat(subproblem_instance) # type: ignore
-                subproblem_model = get_fat_subproblem_model(forgetful_subproblem_instance, config['subproblem']['additional_info'], master_result.scheduled[day_name]) # type: ignore
+                previous_iteration_path = output_path.joinpath(f'iter_{iteration_name}') # type: ignore
+                with open(previous_iteration_path.joinpath(f'subproblem_day_{day_name}_result.json'), 'r') as file:
+                    subproblem_result = decode_subproblem_result(json.load(file))
+                
+                remove_requests_not_present(subproblem_result, master_result, day_name)
             
-            elif config['structure_type'] in ['slim-fat', 'fat-fat']:
-                subproblem_model = get_fat_subproblem_model(subproblem_instance, config['subproblem']['additional_info']) # type: ignore
+            # Se il risultato non è già presente nella cache in una qualche
+            # iterazione precedente, risolvi il sottoproblema normalmente
             else:
-                subproblem_model = get_slim_subproblem_model(subproblem_instance) # type: ignore
-            end = time.perf_counter()
-            print(f'done ({end - start:.04}s) ', end='')
+                # Creazione del modello MILP del giorno corrente
+                print(f'[iter {iteration_index}] [SUB] Start day {day_name} model creation...', end='')
+                start = time.perf_counter()
 
-            # Risoluzione del modello MILP del giorno corrente
-            print('Start solving...', end='')
-            start = time.perf_counter()
-            subproblem_opt.solve(subproblem_model, logfile=iteration_path.joinpath(f'subproblem_day_{day_name}_log.log'))
-            end = time.perf_counter()
-            total_time_elapsed += end - start
-            print(f'done ({end - start:.04}s)', end='')
-            if end - start >= config['subproblem']['time_limit']:
-                print(' [TIME LIMIT]')
-            else:
-                print('')
+                # Se la struttura risolutiva è 'fat-fat' ed è selezionata l'opzione
+                # 'preemptive_forbidding'allora bisogna costruire l'istanza del
+                # sottoproblema dimenticandosi dei nomi degli operatori
+                if config['structure_type'] == 'fat-fat' and 'preemptive_forbidding' in config['subproblem']['additional_info']:
+                    
+                    forgetful_subproblem_instance = get_slim_subproblem_instance_from_fat(subproblem_instance) # type: ignore
+                    subproblem_model = get_fat_subproblem_model(forgetful_subproblem_instance, config['subproblem']['additional_info'], master_result.scheduled[day_name]) # type: ignore
+                
+                elif config['structure_type'] in ['slim-fat', 'fat-fat']:
+                    subproblem_model = get_fat_subproblem_model(subproblem_instance, config['subproblem']['additional_info']) # type: ignore
+                else:
+                    subproblem_model = get_slim_subproblem_model(subproblem_instance) # type: ignore
+                end = time.perf_counter()
+                print(f'done ({end - start:.04}s) ', end='')
 
-            if config['structure_type'] in ['slim-fat', 'fat-fat']:
-                subproblem_result = get_result_from_fat_subproblem_model(subproblem_model)
-            else:
-                subproblem_result = get_result_from_slim_subproblem_model(subproblem_model)
+                # Risoluzione del modello MILP del giorno corrente
+                print('Start solving...', end='')
+                start = time.perf_counter()
+                subproblem_opt.solve(subproblem_model, logfile=iteration_path.joinpath(f'subproblem_day_{day_name}_log.log'))
+                end = time.perf_counter()
+                total_time_elapsed += end - start
+                print(f'done ({end - start:.04}s)', end='')
+                if end - start >= config['subproblem']['time_limit']:
+                    print(' [TIME LIMIT]')
+                else:
+                    print('')
+
+                if config['structure_type'] in ['slim-fat', 'fat-fat']:
+                    subproblem_result = get_result_from_fat_subproblem_model(subproblem_model)
+                else:
+                    subproblem_result = get_result_from_slim_subproblem_model(subproblem_model)
 
             # Salvataggio dei risultati del giorno corrente
             with open(iteration_path.joinpath(f'subproblem_day_{day_name}_result.json'), 'w') as file:
@@ -641,7 +664,7 @@ def solve_instance(
                 
                 if config['core_type'] in ['pruned']:
                     start = time.perf_counter()
-                    cores = get_pruned_slim_cores(master_instance.services, all_subproblem_instances, cores, config) # type: ignore
+                    cores = get_pruned_slim_cores(all_subproblem_result, all_subproblem_instances, cores, config) # type: ignore
                     end = time.perf_counter()
                     total_time_elapsed += end - start
                     print(f'[iter {iteration_index}] [CORE] {len(cores)} \'pruned\' cores found ({end - start:.04}s)')

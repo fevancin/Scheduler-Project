@@ -249,9 +249,11 @@ def get_fat_master_model(instance: MasterInstance, additional_info) -> pyo.Concr
         
         model.pat_uses_day = pyo.Var(model.pat_days_index, domain=pyo.Binary) # type: ignore
         
-        @model.Constraint(model.do_index) # type: ignore
-        def link_do_to_pat_uses_day_variables(model, p, s, d, o):
-            return model.do[p, s, d, o] <= model.pat_uses_day[p, d]
+        model.psd_index = pyo.Set(initialize=sorted((p, s, d) for p, s, d, _ in model.do_index)) # type: ignore
+
+        @model.Constraint(model.psd_index) # type: ignore
+        def link_do_to_pat_uses_day_variables(model, p, s, d):
+            return pyo.quicksum(model.do[p, s, d, o] for pp, ss, dd, o in model.do_index if p == pp and s == ss and d == dd) <= model.pat_uses_day[p, d]
     
         @model.Objective(sense=pyo.maximize) # type: ignore
         def objective_function(model): # type: ignore

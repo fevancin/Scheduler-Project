@@ -3,6 +3,7 @@ from src.common.custom_types import DayName, FatSubproblemInstance, SlimSubprobl
 from src.common.custom_types import FatSubproblemPatient, ServiceOperator, SlimSubproblemPatient
 from src.common.custom_types import FatSubproblemResult, SlimSubproblemResult, FinalResult
 from src.common.custom_types import PatientServiceWindow, PatientService, PatientServiceOperator
+from src.common.custom_types import PatientServiceOperatorTimeSlot
 
 
 def is_combination_to_do(
@@ -210,3 +211,28 @@ def get_slim_subproblem_instance_from_fat(instance: FatSubproblemInstance) -> Sl
         forgetful_subproblem_instance.patients[patient_name].requests = [request.service_name for request in patient.requests] # type: ignore
     
     return forgetful_subproblem_instance
+
+
+def remove_requests_not_present(
+        result: FatSubproblemResult | SlimSubproblemResult,
+        master_result: FatMasterResult | SlimMasterResult,
+        day_name: DayName):
+    '''Funzione che modifica i risultati del sottoproblema in maniera tale da
+    allinearli con l'elenco di richieste fornito. Eventuali richieste non
+    presenti nella lista verranno eliminate.'''
+
+    new_requests: list[PatientServiceOperatorTimeSlot] = []
+    for request in result.scheduled:
+        
+        request_found = False
+        for request_to_keep in master_result.scheduled[day_name]:
+            if (request_to_keep.patient_name == request.patient_name and
+                request_to_keep.service_name == request.service_name):
+                request_found = True
+                break
+        
+        if request_found:
+            new_requests.append(request)
+    
+    result.scheduled = new_requests
+    result.rejected = [] # type: ignore

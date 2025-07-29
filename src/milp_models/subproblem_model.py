@@ -196,10 +196,16 @@ def get_fat_subproblem_model(
         def objective_function(model): # type: ignore
             return pyo.quicksum(model.satisfy[p, s] * instance.services[s].duration * instance.patients[p].priority for p, s in model.satisfy_index)
     
+    # Se è presente l'opzione 'preemptive_forbidding' è necessario aggiungere un
+    # termine al valore della funzione obiettivo che si attivi solo se la
+    # soluzione è esattamente quella proposta dal master (fat_requests). Questa
+    # variabile è pesata per un valore molto grande per preferire la soluzione
+    # esatta a quelle altre di uguale valore ma con u diverso assegnamento di
+    # operatori.
     else:
         model.e = pyo.Var(domain=pyo.Binary)
 
-        request_tuples = [(request.patient_name, request.service_name, request.operator_name) for request in fat_requests]
+        request_tuples = [(r.patient_name, r.service_name, r.operator_name) for r in fat_requests]
 
         @model.Constraint(model.do_index) # type: ignore
         def is_exact_request(model, p, s, o):

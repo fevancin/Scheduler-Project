@@ -1,7 +1,7 @@
 import time
 import pyomo.environ as pyo
 
-from src.common.custom_types import FatCore, PatientServiceOperator, Service
+from src.common.custom_types import FatCore, PatientServiceOperator, Service, SlimSubproblemResult
 from src.common.custom_types import ServiceName, SlimCore, PatientService, ServiceOperator
 from src.common.custom_types import FatSubproblemInstance, SlimSubproblemInstance
 from src.common.custom_types import DayName, FatSubproblemPatient, SlimSubproblemPatient
@@ -39,19 +39,20 @@ def get_fat_core_components_metric(core: FatCore) -> dict[PatientServiceOperator
             if other_request in requests_to_visit:
                 continue
             
-            # Se il paziente o l'unità di cura sono gli stessi
-            if patient_name == other_request.patient_name:
-                requests_to_visit.add(other_request)
-                components_metric[other_request] = components_metric[request] + 10
-            
+            # Se il paziente o l'operatore sono gli stessi
             if operator_name == other_request.operator_name:
                 requests_to_visit.add(other_request)
                 components_metric[other_request] = components_metric[request] + 1
+            
+            elif patient_name == other_request.patient_name:
+                requests_to_visit.add(other_request)
+                components_metric[other_request] = components_metric[request] + 10
     
     return components_metric
 
 def get_slim_core_components_metric(
         services: dict[ServiceName, Service],
+        result: SlimSubproblemResult,
         core: SlimCore) -> dict[PatientService, int]:
     """Calcolo della distanza a partire dalla sorgente del core, aggiungendo 1
     per ogni arco attraversato."""
@@ -74,6 +75,12 @@ def get_slim_core_components_metric(
         patient_name = request.patient_name
         care_unit_name = services[request.service_name].care_unit_name
 
+        operator_name = None
+        for subproblem_request in result.scheduled:
+            if subproblem_request.patient_name == patient_name and subproblem_request.service_name == request.service_name:
+                operator_name = subproblem_request.operator_name
+                break
+    
         # Cerca ogni altra richiesta a lei collegata
         for other_request in core.components:
             if other_request in requests_visited:
@@ -81,16 +88,30 @@ def get_slim_core_components_metric(
             if other_request in requests_to_visit:
                 continue
             
-            other_care_unit_name = services[other_request.service_name].care_unit_name
+            other_patient_name = other_request.patient_name
+
+            # Se il paziente o l'operatore sono gli stessi
+            if operator_name is not None:
+                
+                other_operator_name = None
+                for subproblem_request in result.scheduled:
+                    if subproblem_request.patient_name == other_patient_name and subproblem_request.service_name == other_request.service_name:
+                        other_operator_name = subproblem_request.operator_name
+                        break
+                
+                if operator_name == other_operator_name:
+                    requests_to_visit.add(other_request)
+                    components_metric[other_request] = components_metric[request] + 1
             
-            # Se il paziente o l'unità di cura sono gli stessi
-            if patient_name == other_request.patient_name:
+            else:
+                other_care_unit_name = services[other_request.service_name].care_unit_name
+                if care_unit_name == other_care_unit_name:
+                    requests_to_visit.add(other_request)
+                    components_metric[other_request] = components_metric[request] + 1
+            
+            if other_request not in components_metric and patient_name == other_patient_name:
                 requests_to_visit.add(other_request)
                 components_metric[other_request] = components_metric[request] + 10
-            
-            if care_unit_name == other_care_unit_name:
-                requests_to_visit.add(other_request)
-                components_metric[other_request] = components_metric[request] + 1
     
     return components_metric
 
@@ -196,14 +217,17 @@ def get_pruned_fat_cores(
 
         # Le nuove componenti sono quelle rimaste, più l'ultima appena tolta che
         # ha garantito la piena soddisfacibilità
-        core.components = sorted_requests[:end + 1]
+        if end >= len(core.reason):
+            core.components = sorted_requests[:end + 1]
+        else:
+            print(f'ERROR: core size is less than its reason')
 
         print(f' done with {end}')
     
     return cores
 
 def get_pruned_slim_cores(
-        services: dict[ServiceName, Service],
+        all_subproblem_results: dict[DayName, SlimSubproblemResult],
         instances: dict[DayName, SlimSubproblemInstance],
         reduced_cores: list[SlimCore],
         config) -> list[SlimCore]:
@@ -218,8 +242,11 @@ def get_pruned_slim_cores(
         if len(core.components) <= 1:
             continue
 
+        day_name = core.days[0]
+
         # Ottenimento della metrica euristica con cui selezionare le richieste
-        components_metric = get_slim_core_components_metric(services, core)
+        # (fat anche se i core sono slim per avere più granellazione)
+        components_metric = get_slim_core_components_metric(instances[day_name].services, all_subproblem_results[day_name], core)
 
         # Ordine euristico con cui le richieste verranno progressivamente
         # eliminate dall'istanza
@@ -242,7 +269,7 @@ def get_pruned_slim_cores(
 
         # Continua a togliere richieste finchè l'istanza non è risolta
         # pienamente
-        while end != start + 1:
+        while end > start + 1:
 
             print(f' -> {cursor}', end='')
             
@@ -276,7 +303,10 @@ def get_pruned_slim_cores(
 
         # Le nuove componenti sono quelle rimaste, più l'ultima appena tolta che
         # ha garantito la piena soddisfacibilità
-        core.components = sorted_requests[:end + 1]
+        if end >= len(core.reason):
+            core.components = sorted_requests[:end + 1]
+        else:
+            print(f'ERROR: core size is less than its reason')
 
         print(f' done with {end}')
 
