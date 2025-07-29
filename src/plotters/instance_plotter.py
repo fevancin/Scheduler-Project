@@ -88,7 +88,6 @@ def plot_master_results(
     ax.set_xlabel('Days')
     ax.set_ylabel('Total request slots')
 
-    # plt.show()
     fig.savefig(save_path, dpi=200)
     plt.close('all')
 
@@ -221,6 +220,5 @@ def plot_subproblem_results(
     ax.set_xlabel('Time slots')
     ax.set_ylabel('Operators')
 
-    # plt.show()
     fig.savefig(save_path)
     plt.close('all')

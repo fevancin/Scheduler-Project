@@ -1,10 +1,13 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 from pathlib import Path
 
+from src.common.custom_types import FatCore, SlimCore, MasterInstance, OperatorName, TimeSlot
+from src.common.custom_types import PatientServiceOperator
 from src.common.tools import is_combination_to_do
 
-def plot_cores(master_result_df: pd.DataFrame, results_path: Path, config):
+def plot_core_info(master_result_df: pd.DataFrame, results_path: Path, config):
 
     for key, master_iterations in master_result_df.groupby(['config', 'group', 'instance']):
 
@@ -17,8 +20,25 @@ def plot_cores(master_result_df: pd.DataFrame, results_path: Path, config):
             if f'{core_type}_core_number' not in master_iterations or f'{core_type}_average_core_size' not in master_iterations:
                 continue
             
-            cores_data[core_type] = master_iterations[['config', 'group', 'instance', 'iteration', f'{core_type}_core_number', f'{core_type}_average_core_size', f'{core_type}_min_core_size', f'{core_type}_max_core_size']]
-            cores_data[core_type] = cores_data[core_type].rename(columns={f'{core_type}_core_number': 'core_number', f'{core_type}_average_core_size': 'average_core_size', f'{core_type}_min_core_size': 'min_core_size', f'{core_type}_max_core_size': 'max_core_size'})
+            cores_data[core_type] = master_iterations[[
+                'config', 'group', 'instance', 'iteration',
+                f'{core_type}_core_number',
+                f'{core_type}_average_core_size', f'{core_type}_min_core_size', f'{core_type}_max_core_size',
+                f'{core_type}_average_total_duration_per_core', f'{core_type}_min_total_duration_per_core', f'{core_type}_max_total_duration_per_core',
+                f'{core_type}_average_care_unit_number_per_core', f'{core_type}_min_care_unit_number_per_core', f'{core_type}_max_care_unit_number_per_core'
+            ]]
+            cores_data[core_type] = cores_data[core_type].rename(columns={
+                f'{core_type}_core_number': 'core_number',
+                f'{core_type}_average_core_size': 'average_core_size',
+                f'{core_type}_min_core_size': 'min_core_size',
+                f'{core_type}_max_core_size': 'max_core_size',
+                f'{core_type}_average_total_duration_per_core': 'average_total_duration_per_core',
+                f'{core_type}_min_total_duration_per_core': 'min_total_duration_per_core',
+                f'{core_type}_max_total_duration_per_core': 'max_total_duration_per_core',
+                f'{core_type}_average_care_unit_number_per_core': 'average_care_unit_number_per_core',
+                f'{core_type}_min_care_unit_number_per_core': 'min_care_unit_number_per_core',
+                f'{core_type}_max_care_unit_number_per_core': 'max_care_unit_number_per_core'
+            })
             cores_data[core_type] = cores_data[core_type].sort_values(by='iteration')
         
         is_empty = True
@@ -45,23 +65,183 @@ def plot_cores(master_result_df: pd.DataFrame, results_path: Path, config):
             'pruned': 'red'
         }
 
-        fig, axs = plt.subplots(2)
+        average_result_duration = master_iterations['master_average_scheduled_request_duration_per_day']
+
+        fig, axs = plt.subplots(2, 2)
 
         for core_type, value in cores_data.items():
-            marker_sizes: pd.Series = (value['core_number'] - min_core_size) / (max_core_size - min_core_size) * 20 + 10
-            axs[0].scatter(value['iteration'], value['average_core_size'], s=marker_sizes, marker='s', facecolors='none', linewidths=2.0, color=colors[core_type])
-            axs[0].plot(value['iteration'], value['average_core_size'], color=colors[core_type], label=core_type)
-            axs[0].fill_between(value['iteration'], value['min_core_size'], value['max_core_size'], alpha=0.25, linewidth=0, color=colors[core_type])
-            axs[1].plot(value['iteration'], value['core_number'], color=colors[core_type], label=core_type)
+            # marker_sizes: pd.Series = (value['core_number'] - min_core_size) / (max_core_size - min_core_size) * 20 + 10
+            # axs[0, 0].scatter(value['iteration'], value['average_core_size'], s=marker_sizes, marker='s', facecolors='none', linewidths=2.0, color=colors[core_type])
+            axs[0, 0].plot(value['iteration'], value['average_core_size'], color=colors[core_type], label=core_type)
+            axs[0, 0].fill_between(value['iteration'], value['min_core_size'], value['max_core_size'], alpha=0.25, linewidth=0, color=colors[core_type])
+            
+            axs[1, 0].plot(value['iteration'], value['core_number'], color=colors[core_type], label=core_type)
 
-        axs[0].legend()
-        axs[0].set_ylabel('Core size')
-        axs[0].set_title(f'Cores of config \'{key[0]}\'\ngroup \'{key[1]}\' instance \'{key[2]}\'')
-        axs[1].set_xlabel('Iteration')
-        axs[1].set_ylabel('Core number')
+            axs[0, 1].plot(value['iteration'], value['average_total_duration_per_core'] / average_result_duration, color=colors[core_type], label=core_type)
+            axs[0, 1].fill_between(value['iteration'], value['min_total_duration_per_core'] / average_result_duration, value['max_total_duration_per_core'] / average_result_duration, alpha=0.25, linewidth=0, color=colors[core_type])
+            
+            axs[1, 1].plot(value['iteration'], value['average_care_unit_number_per_core'], color=colors[core_type], label=core_type)
+            axs[1, 1].fill_between(value['iteration'], value['min_care_unit_number_per_core'], value['max_care_unit_number_per_core'], alpha=0.25, linewidth=0, color=colors[core_type])
+        
+        axs[0, 0].set_ylabel('Core size')
+        axs[1, 0].legend()
+        axs[1, 0].set_xlabel('Iteration')
+        axs[1, 0].set_ylabel('Core number')
+        axs[0, 1].set_ylabel('Core size (%)')
+        axs[0, 1].set_ylim([0.0, 1.1])
+        axs[1, 1].set_xlabel('Iteration')
+        axs[1, 1].set_ylabel('Care unit number')
 
         save_path = results_path.joinpath(f'{key[0]}__{key[1]}__{key[2]}', 'plots')
         save_path.mkdir(exist_ok=True)
 
+        fig.suptitle(f'Cores of config \'{key[0]}\'\ngroup \'{key[1]}\' instance \'{key[2]}\'')
+        fig.tight_layout()
         fig.savefig(save_path.joinpath('cores.png'))
+        plt.close('all')
+
+def plot_core_gantt(
+        instance: MasterInstance,
+        cores: list[FatCore] | list[SlimCore],
+        save_path: Path,
+        title: str):
+
+    colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
+        'tab:brown', 'tab:pink', 'tab:gray', 'tab:olive', 'tab:cyan']
+
+    care_unit_names = set()
+    for day in instance.days.values():
+        care_unit_names.update(day.care_units.keys())
+    
+    care_unit_colors = {care_unit_name: colors[i % len(colors)]
+        for i, care_unit_name in enumerate(care_unit_names)}
+
+    row_height = 2.0
+    space_between_operators = 1.0
+
+    for core_index, core in enumerate(cores):
+        day_name = core.days[0]
+
+        y = 0
+        operator_ys: dict[OperatorName, float] = {}
+        y_ticks_pos: list[float] = []
+
+        for operator_name in instance.days[day_name].operators.keys():
+
+            y_ticks_pos.append(y + row_height * 0.5)
+
+            operator_ys[operator_name] = y
+            y += row_height + space_between_operators
+    
+        fig, ax = plt.subplots()
+        fig.set_size_inches(12, 6)
+
+        xs = []
+        ys = []
+        x_mins = []
+        x_maxs = []
+        y_mins = []
+        y_maxs = []
+
+        for operator_name, operator in instance.days[day_name].operators.items():
+            
+            x_mins.append(operator.start)
+            x_maxs.append(operator.end)
+            ys.append(operator_ys[operator_name] + 0.5 * row_height)
+            
+            xs.append(operator.start)
+            y_mins.append(operator_ys[operator_name] - space_between_operators * 0.25)
+            y_maxs.append(operator_ys[operator_name] + row_height + space_between_operators * 0.25)
+            xs.append(operator.end)
+            y_mins.append(operator_ys[operator_name] - space_between_operators * 0.25)
+            y_maxs.append(operator_ys[operator_name] + row_height + space_between_operators * 0.25)
+
+        ax.vlines(x=xs, ymin=y_mins, ymax=y_maxs, colors='black', lw=2, zorder=2)
+        ax.hlines(xmin=x_mins, xmax=x_maxs, y=ys, colors='black', lw=2, zorder=0)
+
+        operator_end_times: dict[OperatorName, TimeSlot] = {}
+        for operator_name in instance.days[day_name].operators.keys():
+            operator_end_times[operator_name] = 0
+
+        max_operator_end_time = max(o.end for o in instance.days[day_name].operators.values())
+
+        for component in core.components:
+
+            if component in core.reason:
+                continue
+
+            service_name = component.service_name
+            care_unit_name = instance.services[service_name].care_unit_name
+            duration = instance.services[service_name].duration
+
+            if isinstance(component, PatientServiceOperator):
+                operator_name = component.operator_name
+            
+            else:
+                operator_name = min((operator_name
+                    for operator_name, operator in instance.days[day_name].operators.items()
+                    if operator.care_unit_name == care_unit_name),
+                    key=lambda o: operator_end_times[o])
+            
+            start_time = operator_end_times[operator_name]
+            operator_end_times[operator_name] += duration
+            
+            ax.add_patch(Rectangle(
+                (start_time, operator_ys[operator_name]),
+                duration, row_height,
+                linewidth=1, edgecolor='k',
+                facecolor=care_unit_colors[care_unit_name], zorder=1))
+            
+            ax.text(
+                (start_time + duration * 0.5), operator_ys[operator_name] + row_height * 0.125,
+                f'{component.patient_name}\n{service_name}', ha='center', zorder=3)
+
+        for component in core.reason:
+
+            service_name = component.service_name
+            care_unit_name = instance.services[service_name].care_unit_name
+            duration = instance.services[service_name].duration
+
+            if isinstance(component, PatientServiceOperator):
+                operator_name = component.operator_name
+            
+            else:
+                operator_name = min((operator_name
+                    for operator_name, operator in instance.days[day_name].operators.items()
+                    if operator.care_unit_name == care_unit_name),
+                    key=lambda o: operator_end_times[o])
+            
+            start_time = operator_end_times[operator_name]
+            operator_end_times[operator_name] += duration
+            
+            ax.add_patch(Rectangle(
+                (start_time, operator_ys[operator_name]),
+                duration, row_height,
+                linewidth=1, edgecolor='k',
+                facecolor=care_unit_colors[care_unit_name], alpha=0.5, zorder=1))
+            
+            ax.text(
+                (start_time + duration * 0.5), operator_ys[operator_name] + row_height * 0.125,
+                f'{component.patient_name}\n{service_name}', ha='center', zorder=3)
+
+        max_time_slot = max(operator_end_times.values())
+        x_ticks = list(range(0, max_time_slot + 1))
+
+        ax.vlines(x=list(range(max_time_slot + 1)), ymin=-space_between_operators, ymax=y,
+                colors='grey', lw=0.5, ls=(0, (5, 10)), zorder=-1)
+
+        ax.set_xlim(left=-1, right=max_time_slot + 1)
+        ax.set_ylim(bottom=-space_between_operators, top=y)
+        ax.set_xticks(x_ticks, labels=x_ticks) # type: ignore
+        ax.set_yticks(y_ticks_pos, labels=list(operator_ys.keys()))
+
+        if max_operator_end_time < max_time_slot:
+            for i in range(max_operator_end_time + 1, max_time_slot + 1):
+                ax.get_xticklabels()[i].set_color("red")
+
+        ax.set_title(title)
+        ax.set_xlabel('Time slots')
+        ax.set_ylabel('Operators')
+
+        fig.savefig(save_path.joinpath(f'core_{core_index}.png'))
         plt.close('all')
