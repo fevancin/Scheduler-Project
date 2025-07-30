@@ -28,7 +28,7 @@ def analyze_subproblem_instance(instance: FatSubproblemInstance | SlimSubproblem
         'care_unit_number': care_unit_number,
         'operator_total_number': operator_total_number,
         'patient_number': patient_number,
-        'total_request_number': total_time_slots_requested,
+        'total_request_number': sum(patient_request_numbers),
         
         'min_care_unit_duration': min(care_unit_durations),
         'max_care_unit_duration': max(care_unit_durations),

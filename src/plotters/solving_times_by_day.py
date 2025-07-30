@@ -24,7 +24,7 @@ def plot_solving_times_by_day(
         cbar = fig.colorbar(img, ax=ax, shrink=0.7)
         cbar.set_label('Time (s)')
 
-        ax.scatter(not_sat['iteration'] - 1, not_sat['day'], marker='x', color='black', s=5)
+        ax.scatter(not_sat['iteration'] - 1, not_sat['day'] - 1, marker='x', color='black', s=5)
         
         ax.set_yticks(image.index - 1, labels=image.index)
         ax.set_ylabel('Day')

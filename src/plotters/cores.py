@@ -4,7 +4,7 @@ from matplotlib.patches import Rectangle
 from pathlib import Path
 
 from src.common.custom_types import FatCore, SlimCore, MasterInstance, OperatorName, TimeSlot
-from src.common.custom_types import PatientServiceOperator
+from src.common.custom_types import PatientServiceOperator, DayName, FatSubproblemResult, SlimSubproblemResult
 from src.common.tools import is_combination_to_do
 
 def plot_core_info(master_result_df: pd.DataFrame, results_path: Path, config):
@@ -104,6 +104,7 @@ def plot_core_gantt(
         instance: MasterInstance,
         cores: list[FatCore] | list[SlimCore],
         save_path: Path,
+        all_subproblem_result: dict[DayName, FatSubproblemResult] | dict[DayName, SlimSubproblemResult],
         title: str):
 
     colors = ['tab:blue', 'tab:orange', 'tab:green', 'tab:red', 'tab:purple',
@@ -121,6 +122,9 @@ def plot_core_gantt(
 
     for core_index, core in enumerate(cores):
         day_name = core.days[0]
+        if day_name not in all_subproblem_result:
+            print(f'day {day_name} does not have subproblem result')
+            continue
 
         y = 0
         operator_ys: dict[OperatorName, float] = {}
@@ -160,41 +164,47 @@ def plot_core_gantt(
         ax.hlines(xmin=x_mins, xmax=x_maxs, y=ys, colors='black', lw=2, zorder=0)
 
         operator_end_times: dict[OperatorName, TimeSlot] = {}
-        for operator_name in instance.days[day_name].operators.keys():
-            operator_end_times[operator_name] = 0
 
-        max_operator_end_time = max(o.end for o in instance.days[day_name].operators.values())
+        for request in all_subproblem_result[day_name].scheduled:
 
-        for component in core.components:
-
-            if component in core.reason:
-                continue
-
-            service_name = component.service_name
+            patient_name = request.patient_name
+            service_name = request.service_name
+            operator_name = request.operator_name
             care_unit_name = instance.services[service_name].care_unit_name
             duration = instance.services[service_name].duration
+            start_time = request.time_slot
+            
+            request_in_core = False
+            for component in core.components:
+                if component.service_name == service_name and component.patient_name == patient_name:
+                    if isinstance(component, PatientServiceOperator):
+                        if component.operator_name == operator_name:
+                            request_in_core = True
+                            break
+                    else:
+                        request_in_core = True
+                        break
 
-            if isinstance(component, PatientServiceOperator):
-                operator_name = component.operator_name
-            
+            if not request_in_core:
+                continue
+
+            end_time = start_time + instance.services[service_name].duration
+            if operator_name not in operator_end_times:
+                operator_end_times[operator_name] = end_time
             else:
-                operator_name = min((operator_name
-                    for operator_name, operator in instance.days[day_name].operators.items()
-                    if operator.care_unit_name == care_unit_name),
-                    key=lambda o: operator_end_times[o])
-            
-            start_time = operator_end_times[operator_name]
-            operator_end_times[operator_name] += duration
-            
+                operator_end_times[operator_name] = max(end_time, operator_end_times[operator_name])
+
             ax.add_patch(Rectangle(
                 (start_time, operator_ys[operator_name]),
                 duration, row_height,
                 linewidth=1, edgecolor='k',
-                facecolor=care_unit_colors[care_unit_name], zorder=1))
+                facecolor=care_unit_colors[care_unit_name]))
             
             ax.text(
                 (start_time + duration * 0.5), operator_ys[operator_name] + row_height * 0.125,
-                f'{component.patient_name}\n{service_name}', ha='center', zorder=3)
+                f'{request.patient_name}\n{service_name}', ha='center')
+
+        max_operator_end_time = max(d for d in operator_end_times.values())
 
         for component in core.reason:
 

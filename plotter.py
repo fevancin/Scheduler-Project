@@ -4,7 +4,7 @@ import yaml
 import json
 import pandas as pd
 
-from src.common.custom_types import SlimSubproblemResult
+from src.common.custom_types import SlimSubproblemResult, DayName, FatSubproblemResult
 from src.common.file_load_and_dump import decode_master_instance, decode_final_result, decode_master_result
 from src.common.file_load_and_dump import decode_subproblem_instance, decode_subproblem_result, decode_cores
 from src.common.tools import get_slim_subproblem_instance_from_final_result, is_combination_to_do
@@ -170,23 +170,34 @@ if 'best_instance' in config['plots_to_do'] or 'best_instance_subproblems' in co
                         cores_path = iteration_path.joinpath('basic_cores.json')
                         if not cores_path.exists():
                             cores_path = iteration_path.joinpath('generalist_cores.json')
-                
-                iteration_index += 1
-                iteration_path = result_directory.joinpath(f'iter_{iteration_index}')
 
                 if not cores_path.exists():
                     print(f'Core file not found in iteration {iteration_index - 1} in directory {result_directory.name}, no core plots')
+                    iteration_index += 1
+                    iteration_path = result_directory.joinpath(f'iter_{iteration_index}')
                     continue
                 
                 with open(cores_path, 'r') as file:
                     cores = decode_cores(json.load(file))
                 
+                core_days = set(day_name for core in cores for day_name in core.days)
+                all_subproblem_result: dict[DayName, FatSubproblemResult] | dict[DayName, SlimSubproblemResult] = {}
+
+                for day_name in core_days:
+                    subproblem_result_path = iteration_path.joinpath(f'subproblem_day_{day_name}_result.json')
+                    if not subproblem_result_path.exists():
+                        continue
+                    with open(subproblem_result_path, 'r') as file:
+                        all_subproblem_result[day_name] = decode_subproblem_result(json.load(file)) # type: ignore
+                
                 iteration_plots_path = core_plot_path.joinpath(f'iter_{iteration_index - 1}')
                 iteration_plots_path.mkdir(exist_ok=True)
                 
-                plot_core_gantt(master_instance, cores, iteration_plots_path,
-                    f'Core of instance \'{instance_name}\' of group \'{group_name}\' solved with \'{config_name}\'')
+                plot_core_gantt(master_instance, cores, iteration_plots_path, all_subproblem_result,
+                    f'Core of instance \'{instance_name}\' of group \'{group_name}\' solved with \'{config_name}\' (day {day_name})')
                 
+                iteration_index += 1
+                iteration_path = result_directory.joinpath(f'iter_{iteration_index}')
 
         print(f'done')
 
