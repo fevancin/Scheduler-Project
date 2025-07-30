@@ -171,21 +171,22 @@ if 'best_instance' in config['plots_to_do'] or 'best_instance_subproblems' in co
                         if not cores_path.exists():
                             cores_path = iteration_path.joinpath('generalist_cores.json')
                 
+                iteration_index += 1
+                iteration_path = result_directory.joinpath(f'iter_{iteration_index}')
+
                 if not cores_path.exists():
-                    print(f'Core file not found in iteration {iteration_index} in directory {result_directory.name}, no core plots')
+                    print(f'Core file not found in iteration {iteration_index - 1} in directory {result_directory.name}, no core plots')
                     continue
                 
                 with open(cores_path, 'r') as file:
                     cores = decode_cores(json.load(file))
                 
-                iteration_plots_path = core_plot_path.joinpath(f'iter_{iteration_index}')
+                iteration_plots_path = core_plot_path.joinpath(f'iter_{iteration_index - 1}')
                 iteration_plots_path.mkdir(exist_ok=True)
                 
                 plot_core_gantt(master_instance, cores, iteration_plots_path,
                     f'Core of instance \'{instance_name}\' of group \'{group_name}\' solved with \'{config_name}\'')
                 
-                iteration_index += 1
-                iteration_path = result_directory.joinpath(f'iter_{iteration_index}')
 
         print(f'done')
 
