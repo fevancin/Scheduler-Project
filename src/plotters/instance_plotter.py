@@ -169,7 +169,8 @@ def plot_subproblem_results(
             for r in result.scheduled if r.operator_name == operator_name]
         if len(end_times) == 0:
             operator_end_times[operator_name] = 0
-        operator_end_times[operator_name] = max(end_times)
+        else:
+            operator_end_times[operator_name] = max(end_times)
 
     max_operator_end_time = max(d for d in operator_end_times.values())
 

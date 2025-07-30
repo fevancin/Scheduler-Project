@@ -15,13 +15,13 @@ instances_to_avoid: []
 
 # Elenco dei nomi dei grafici da realizzare per ogni istanza
 plots_to_do: [
-    # 'best_instance', # computationally heavy!
-    # 'best_instance_subproblems', # computationally heavy!
-    # 'core_gantt' # computationally heavy!
+    'best_instance', # computationally heavy!
+    'best_instance_subproblems', # computationally heavy!
+    'core_gantt', # computationally heavy!
     'result_value_vs_time',
     'core_info',
     'solving_times',
     'solving_times_by_day',
     'requests_per_patient',
-    'equal_requests_between_iterations',
+    'equal_requests_between_iterations'
 ]
