@@ -28,7 +28,10 @@ def analyze_log(log_path: Path) -> dict[str, int | float | str]:
                 if tokens[2] == 'cutoff,':
                     analysis['root_relaxation'] = -1
                 else:
-                    analysis['root_relaxation'] = float(tokens[3][:-1])
+                    if tokens[3].startswith('limit'):
+                        analysis['root_relaxation'] = -1.0
+                    else:
+                        analysis['root_relaxation'] = float(tokens[3][:-1])
             
             if line.startswith('Explored'):
                 tokens = line.split()
