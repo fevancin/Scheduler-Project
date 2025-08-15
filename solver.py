@@ -345,6 +345,13 @@ def solve_instance(
                 print(f'[iter {iteration_index}] Found new best solution of value {best_final_result_value_so_far}')
                 with open(output_path.joinpath(f'best_final_result_so_far.json'), 'w') as file:
                     json.dump(encode_final_result(cache_final_result), file, indent=4)
+            
+            # Se il risultato della cache è uguale a quello del master abbiamo
+            # l'ottimo
+            if cache_final_result_value >= master_result_value:
+                print(f'[iter {iteration_index}] [STOP] Reached optimum of value: {cache_final_result_value}')
+                print(f'**************************** [END OF ITERATION {iteration_index:03}] ****************************')
+                break
         
         if config['use_cache']:
             previous_cache_day_iterations = get_previous_cache_day_iterations(cache, master_result)
