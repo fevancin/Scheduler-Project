@@ -55,10 +55,22 @@ base:
 
     # Informazioni sul calcolo dei core (tagli di correttezza)
     core_type: 'pruned' # generalist, basic, reduced, pruned
+    
+    # Dopo la potatura dei core prova a rimuovere una alla volta le componenti
+    # e tenta la soddisfacibilità per controllare che il sottoinsieme di
+    # richieste restituito sia effettivamente irriducibile (ogni componente sia
+    # necessaria)
+    post_pruning_irreducibility: True
+    
+    # Tipologie di anonimizzazione dei core
     # core_patient_expansion: False
     # core_service_expansion: False
     # core_operator_expansion: False # utile solo per master 'fat'
     # core_day_expansion: False
+
+    # Numero massimo di core che possono essere generati dall'anonimizzazione a
+    # partire da quello correntemente analizzato
+    # max_single_core_expansion: 20
 
     # Flag che controll l'utilizzo della cache per ottenere soluzioni da
     # risultati precedenti

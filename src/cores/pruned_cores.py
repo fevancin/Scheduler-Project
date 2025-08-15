@@ -182,7 +182,7 @@ def get_pruned_fat_cores(
 
         # Continua a togliere richieste finchè l'istanza non è risolta
         # pienamente
-        while end != start + 1:
+        while end > start + 1:
 
             print(f' -> {cursor}', end='')
             
@@ -215,6 +215,8 @@ def get_pruned_fat_cores(
             
             cursor = (end - start) // 2 + start
 
+        print(f' done with {end}')
+
         # Le nuove componenti sono quelle rimaste, più l'ultima appena tolta che
         # ha garantito la piena soddisfacibilità
         if end >= len(core.reason):
@@ -222,7 +224,50 @@ def get_pruned_fat_cores(
         else:
             print(f'ERROR: core size is less than its reason')
 
-        print(f' done with {end}')
+        # Ogni componente del core viene testata per raggiungere
+        # l'irriducibilità
+        if config['post_pruning_irreducibility']:
+
+            print(f'Checking irreducibility ({len(core.components)} components):', end='')
+
+            # Crea una copia delle componenti del core
+            irreducible_components: list[PatientServiceOperator] = core.components.copy()
+
+            # Tenta di eliminare ogni componente (a parte la prima e l'ultima)
+            # cercando di mantenere la non soddisfacibilità
+            for component_index, component in enumerate(core.components[1:-1]):
+
+                # Rimuovi la componente corrente
+                irreducible_components.remove(component)
+
+                # Elimina i pazienti dall'istanza copiata
+                cloned_instance.patients = {}
+                
+                # Aggiungi le richieste senza quella corrente
+                for request in irreducible_components:
+                    
+                    patient_name = request.patient_name
+                    service_name = request.service_name
+                    operator_name = request.operator_name
+
+                    if patient_name not in cloned_instance.patients:
+                        cloned_instance.patients[patient_name] = FatSubproblemPatient(instance.patients[patient_name].priority)
+                    cloned_instance.patients[patient_name].requests.append(ServiceOperator(service_name, operator_name))
+
+                errors = check_fat_subproblem_instance(cloned_instance)
+                if len(errors) > 0:
+                    for error in errors:
+                        print(f'ERROR: {error}')
+                    return []
+
+                print(f' {component_index}')
+                if is_instance_fully_satisfiable(cloned_instance, config):
+                    irreducible_components.append(component)
+                    print('y', end='')
+            
+            print('')
+            
+            core.components = irreducible_components
     
     return cores
 
@@ -301,6 +346,8 @@ def get_pruned_slim_cores(
             
             cursor = (end - start) // 2 + start
 
+        print(f' done with {end}')
+
         # Le nuove componenti sono quelle rimaste, più l'ultima appena tolta che
         # ha garantito la piena soddisfacibilità
         if end >= len(core.reason):
@@ -308,6 +355,49 @@ def get_pruned_slim_cores(
         else:
             print(f'ERROR: core size is less than its reason')
 
-        print(f' done with {end}')
+        # Ogni componente del core viene testata per raggiungere
+        # l'irriducibilità
+        if config['post_pruning_irreducibility']:
+
+            print(f'Checking irreducibility ({len(core.components)} components):', end='')
+
+            # Crea una copia delle componenti del core
+            irreducible_components: list[PatientService] = core.components.copy()
+            
+            # Tenta di eliminare ogni componente (a parte la prima e l'ultima)
+            # cercando di mantenere la non soddisfacibilità
+            for component_index, component in enumerate(core.components):
+
+                # Rimuovi la componente corrente
+                irreducible_components.remove(component)
+
+                # Elimina i pazienti dall'istanza copiata
+                cloned_instance.patients = {}
+                
+                # Aggiungi le richieste senza quella corrente
+                for request in irreducible_components:
+                    
+                    patient_name = request.patient_name
+                    service_name = request.service_name
+
+                    if patient_name not in cloned_instance.patients:
+                        cloned_instance.patients[patient_name] = SlimSubproblemPatient(instance.patients[patient_name].priority)
+                    cloned_instance.patients[patient_name].requests.append(service_name)
+
+                errors = check_slim_subproblem_instance(cloned_instance)
+                if len(errors) > 0:
+                    for error in errors:
+                        print(f'ERROR: {error}')
+                    return []
+
+                print(f' {component_index}', end='')
+
+                if is_instance_fully_satisfiable(cloned_instance, config):
+                    irreducible_components.append(component)
+                    print('y', end='')
+            
+            print('')
+
+            core.components = irreducible_components
 
     return cores
