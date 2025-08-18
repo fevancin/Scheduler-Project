@@ -566,6 +566,27 @@ def solve_instance(
 
         cores: list[FatCore] | list[SlimCore] = []
 
+        # Riallinea le richieste che ha assegnato il sottoproblema fat con
+        # quelle che il master aveva proposto. I core devono ovviamente avere a
+        # che fare con le richieste reali del master
+        if config['structure-type'] == 'fat-fat':
+
+            # Ogni risultato del sottoproblema, se ha qualcosa di non assegnato,
+            # viene corretto ripristinando la richiesta originaria del master
+            for day_name, subproblem_result in all_subproblem_result.items():
+                if len(subproblem_result.rejected) == 0:
+                    continue
+
+                daily_master_result: list[PatientServiceOperator] = master_result.scheduled[day_name] # type: ignore
+
+                # Ogni richiesta copia il suo operatore dal master
+                for subproblem_request in subproblem_result.scheduled:
+                    for master_request in daily_master_result:
+                        if (master_request.patient_name == subproblem_request.patient_name
+                            and master_request.service_name == subproblem_request.service_name):
+                            subproblem_request.operator_name = master_request.operator_name
+                            break
+
         # Ottenimento dei core
         if config['core_type'] == 'generalist':
             start = time.perf_counter()
