@@ -2,12 +2,6 @@
 # presenti nel template di base saranno sovrascritte. La chiave dell'oggetto
 # diventerà parte del nome della cartella contenente i risultati.
 groups:
-    minimize_days_fat_slim:
-        structure_type: 'fat-slim'
-        core_type: 'pruned'
-    minimize_days_slim_fat:
-        structure_type: 'slim-fat'
-        core_type: 'pruned'
 
     # fat_slim:
     #     structure_type: 'fat-slim'
@@ -37,8 +31,7 @@ base:
     # Elenco dei nomi di gruppi di istanze da eseguire e da evitare. Aggiungere
     # 'all' per selezionare tutto.
     groups_to_do: ['all']
-    groups_to_avoid: ['32pat_4cu_2op_10like', '32pat_4cu_2op_25like', '32pat_4cu_2op_50like',
-                      '64pat_4cu_2op_10like', '64pat_4cu_2op_25like', '64pat_4cu_2op_50like']
+    groups_to_avoid: []
 
     # Elenco dei nomi di istanze da eseguire e da evitare. Aggiungere 'all'
     # per selezionare tutto.
@@ -51,7 +44,7 @@ base:
     # sottoproblema. Nella versione 'fat-fat' è inoltre possibile specificare la
     # flag 'preemptive_forbidding' nelle informazioni aggiuntive del
     # sottoproblema.
-    structure_type: 'fat-slim' # 'slim-fat', 'fat-slim', 'fat-fat'
+    structure_type: 'slim-fat' # 'slim-fat', 'fat-slim', 'fat-fat'
 
     # Informazioni sul calcolo dei core (tagli di correttezza)
     core_type: 'pruned' # generalist, basic, reduced, pruned
@@ -60,21 +53,21 @@ base:
     # e tenta la soddisfacibilità per controllare che il sottoinsieme di
     # richieste restituito sia effettivamente irriducibile (ogni componente sia
     # necessaria)
-    post_pruning_irreducibility: True
+    post_pruning_irreducibility: true
     
     # Tipologie di anonimizzazione dei core
-    # core_patient_expansion: False
-    # core_service_expansion: False
-    # core_operator_expansion: False # utile solo per master 'fat'
-    # core_day_expansion: False
+    core_patient_expansion: true
+    core_service_expansion: true
+    core_operator_expansion: true # utile solo per master 'fat'
+    core_day_expansion: false
 
     # Numero massimo di core che possono essere generati dall'anonimizzazione a
     # partire da quello correntemente analizzato
-    # max_single_core_expansion: 20
+    max_single_core_expansion: 10
 
     # Flag che controll l'utilizzo della cache per ottenere soluzioni da
     # risultati precedenti
-    use_cache: True
+    use_cache: true
 
     # Numero massimo di iterazioni da eseguire
     max_iteration: 50
@@ -96,7 +89,7 @@ base:
             # Penalizza in funzione obiettivo i pazienti che utilizzano tanti
             # giorni. Questa flag impatta anche sul calcolo della cache
             # provocando instabilità
-            'minimize_hospital_accesses'
+            # 'minimize_hospital_accesses'
         ]
     
     # Informazioni relative al solutore del sottoproblema
@@ -134,5 +127,10 @@ base:
     
     # Informazioni relative al solutore dell'espansione dei core
     core_expansion:
+        time_limit: 30 # in secondi
+        memory_limit: 16 # in GB
+
+    # Informazioni relative al solutore delle sussunzioni sui giorni
+    subsumption:
         time_limit: 30 # in secondi
         memory_limit: 16 # in GB

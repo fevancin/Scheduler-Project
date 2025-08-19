@@ -15,11 +15,17 @@ def get_max_matching_model(arcs: set[SlimArc] | set[FatArc]) -> pyo.ConcreteMode
 
         # Quando il core è espanso sul suo giorno esiste certamente
         # l'assegnamento degenere a->a, ma se il giorno è diverso il matching
-        # potrebbe essere impossibile fin da subito
-        is_vertex_assignable = False
+        # potrebbe essere impossibile fin da subito FORSE VA RIMESSO!!!!!
+        # is_vertex_assignable = False
         
         for j in range(i + 1, len(arc_list)):
             other_arc = arc_list[j]
+
+            # Se gli archi partono dallo stesso vertice allora il vincolo è già
+            # implicato dalla somma che limita ad 1 per ogni sorgente l'arco
+            # scelto
+            if arc[0] == other_arc[0]:
+                continue
 
             # Se i vertici di partenza hanno lo stesso paziente ma le
             # destinazioni no, questo assegnamento è incompatibile
@@ -35,13 +41,6 @@ def get_max_matching_model(arcs: set[SlimArc] | set[FatArc]) -> pyo.ConcreteMode
                 # destinazioni no, questo assegnamento è incompatibile
                 if arc[0].operator_name == other_arc[0].operator_name and arc[1].operator_name != other_arc[1].operator_name:
                     consistency_index.add((arc[0], arc[1], other_arc[0], other_arc[1]))
-            
-            else:
-                is_vertex_assignable = True
-        
-        if not is_vertex_assignable:
-            print(f'{arc} is not assignable')
-            return None
 
     model = pyo.ConcreteModel()
 
@@ -76,7 +75,7 @@ def get_max_matching_model(arcs: set[SlimArc] | set[FatArc]) -> pyo.ConcreteMode
 def ban_matching_from_model(
         model: pyo.ConcreteModel,
         cut: set[SlimArc] | set[FatArc]):
-    """Funzioen che aggiunge un taglio che vieta il ripresentarsi della medesima
+    """Funzione che aggiunge un taglio che vieta il ripresentarsi della medesima
     soluzione data dagli archi forniti in input."""
 
     model.cuts.add(expr=pyo.quicksum(model.choose[a, b] for a, b in cut) <= len(cut) - 1) # type: ignore

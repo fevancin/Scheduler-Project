@@ -77,6 +77,6 @@ def aggregate_core_lists(
     # Aggiungi tutti i core unici della seconda lista
     for other_core in other_cores:
         if not is_core_included(other_core, aggregate_list):
-            aggregate_list.append(core) # type: ignore
+            aggregate_list.append(other_core) # type: ignore
 
     return aggregate_list

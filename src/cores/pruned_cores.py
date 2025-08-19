@@ -215,14 +215,14 @@ def get_pruned_fat_cores(
             
             cursor = (end - start) // 2 + start
 
-        print(f' done with {end}')
-
         # Le nuove componenti sono quelle rimaste, più l'ultima appena tolta che
         # ha garantito la piena soddisfacibilità
         if end >= len(core.reason):
             core.components = sorted_requests[:end + 1]
         else:
             print(f'ERROR: core size is less than its reason')
+
+        print(f' done with {len(core.components)} components')
 
         # Ogni componente del core viene testata per raggiungere
         # l'irriducibilità
@@ -260,7 +260,7 @@ def get_pruned_fat_cores(
                         print(f'ERROR: {error}')
                     return []
 
-                print(f' {component_index + 1}')
+                print(f' {component_index + 2}')
                 if is_instance_fully_satisfiable(cloned_instance, config):
                     irreducible_components.append(component)
                     print('y', end='')
@@ -348,7 +348,6 @@ def get_pruned_slim_cores(
             
             cursor = (end - start) // 2 + start
 
-        print(f' done with {end}')
 
         # Le nuove componenti sono quelle rimaste, più l'ultima appena tolta che
         # ha garantito la piena soddisfacibilità
@@ -356,6 +355,8 @@ def get_pruned_slim_cores(
             core.components = sorted_requests[:end + 1]
         else:
             print(f'ERROR: core size is less than its reason')
+
+        print(f' done with {len(core.components)} components')
 
         # Ogni componente del core viene testata per raggiungere
         # l'irriducibilità
@@ -368,7 +369,7 @@ def get_pruned_slim_cores(
             
             # Tenta di eliminare ogni componente (a parte la prima e l'ultima)
             # cercando di mantenere la non soddisfacibilità
-            for component_index, component in enumerate(core.components):
+            for component_index, component in enumerate(core.components[1:-1]):
 
                 # Rimuovi la componente corrente
                 irreducible_components.remove(component)
@@ -392,7 +393,7 @@ def get_pruned_slim_cores(
                         print(f'ERROR: {error}')
                     return []
 
-                print(f' {component_index + 1}', end='')
+                print(f' {component_index + 2}', end='')
 
                 if is_instance_fully_satisfiable(cloned_instance, config):
                     irreducible_components.append(component)

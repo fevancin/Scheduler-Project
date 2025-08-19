@@ -1,13 +1,15 @@
 import pyomo.environ as pyo
 import time
 
-from src.common.custom_types import FatCore, SlimCore, DayName
-from src.common.custom_types import PatientService, PatientServiceOperator, SlimArc, FatArc
+from src.common.custom_types import FatCore, SlimCore, DayName, MasterInstance, ServiceName, Service
+from src.common.custom_types import PatientService, PatientServiceOperator, SlimArc, FatArc, CareUnitName
 from src.milp_models.max_matching_model import get_max_matching_model, get_matching_from_max_matching_model, ban_matching_from_model
+from src.milp_models.subsumption_model import get_subsumption_model, subsumption_model_has_solution
 
 def get_expansion_arcs(
         core: FatCore | SlimCore,
         all_possible_master_requests: list[PatientServiceOperator] | list[PatientService],
+        services: dict[ServiceName, Service],
         config) -> set[SlimArc] | set[FatArc]:
     """Funzione che ritorna l'elenco di tutte le coppie che rappresentano
     possibili rinomine fra componenti del core e possibili richieste del master.
@@ -24,6 +26,15 @@ def get_expansion_arcs(
 
         # Ricerca dei vertici di destra a lui collegati
         for request in all_possible_master_requests:
+
+            # Il servizio deve mantenere la stessa unità di cura
+            if services[component.service_name].care_unit_name != services[request.service_name].care_unit_name:
+                continue
+
+            # I servizi di destra (del master) sono validi solo se hanno durata
+            # maggiore o uguale a quelli di sinistra (del core)
+            if services[component.service_name].duration > services[request.service_name].duration:
+                continue
 
             # Se il nome del paziente o servizio è differente e non li stiamo
             # anonimizzando, l'arco non va bene
@@ -52,15 +63,16 @@ def get_expansion_arcs(
 
 def get_core_from_matching(
         core: FatCore | SlimCore,
-        matching: set[SlimArc] | set[FatArc]) -> FatCore | SlimCore:
+        matching: set[SlimArc] | set[FatArc],
+        day_name: DayName) -> FatCore | SlimCore:
     """Rinomina del core con i dati presenti nel matching. Eventuali nomi non
     presenti saranno copiati senza modifiche. Questa funzione non modifica il
     core di input."""
 
     if isinstance(core, FatCore):
-        matched_core = FatCore(days=core.days)
+        matched_core = FatCore(days=[day_name])
     else:
-        matched_core = SlimCore(days=core.days)
+        matched_core = SlimCore(days=[day_name])
 
     # Ogni componente del core andrà rinominata, se esiste nel matching
     for component in core.components:
@@ -90,13 +102,15 @@ def get_core_from_matching(
         else:
             matched_core.reason.append(component) # type: ignore
     
-    return core
-            
+    return matched_core
+
 
 def expand_cores(
         cores: list[FatCore] | list[SlimCore],
         all_possible_master_requests: dict[DayName, list[PatientServiceOperator]] | dict[DayName, list[PatientService]],
-        config) -> list[FatCore] | list[SlimCore]:
+        services: dict[ServiceName, Service],
+        config,
+        subsumptions=None) -> list[FatCore] | list[SlimCore]:
 
     expanded_cores: list[FatCore] | list[SlimCore] = []
 
@@ -104,51 +118,120 @@ def expand_cores(
     opt.options['TimeLimit'] = config['core_expansion']['time_limit']
     opt.options['SoftMemLimit'] = config['core_expansion']['memory_limit']
 
-    print(f'Expanding cores (of {len(cores)}):', end='')
+    print(f'Expanding {len(cores)} cores')
     for core_index, core in enumerate(cores):
-        print(f' {core_index}', end='')
-        for day_name in core.days:
 
-            arcs = get_expansion_arcs(core, all_possible_master_requests[day_name], config)
+        # Se l'espansione dei giorni non è attiva
+        if not config['core_day_expansion'] or subsumptions is None:
+            days_to_do = set(core.days)
+        
+        # Se invece bisogna espandere i giorni
+        else:
+
+            # Insieme di tutte le unità di cura toccate dal core corrente
+            care_unit_affected: set[CareUnitName] = set()
+            for component in core.components:
+                care_unit_affected.add(services[component.service_name].care_unit_name)
+
+            # Insieme di giorni espansi
+            days_to_do: set[DayName] = set(core.days)
+
+            # Ogni giorno del core verrà espanso e si prenderà la loro unione
+            for day_name in core.days:
+                
+                # Elenco di giorni più piccoli o uguali al giorno corrente in
+                # tutte le unità di cura toccate
+                smaller_days: set[DayName] = subsumptions[care_unit_affected.pop()][day_name]
+                for care_unit_name in care_unit_affected:
+                    smaller_days.intersection_update(subsumptions[care_unit_name][day_name])
+                
+                days_to_do.update(smaller_days)
+
+        for day_name in days_to_do:
+
+            print(f'core {core_index + 1}, day {day_name}: ', end='')
+            arcs = get_expansion_arcs(core, all_possible_master_requests[day_name], services, config)
+            
             matching_model = get_max_matching_model(arcs)
             if matching_model is None:
-                print('(nomodel)', end='')
+                print('nomodel')
                 continue
-
-            matching_model.pprint()
 
             core_expansion_number = 0
 
-            while core_expansion_number <= config['max_single_core_expansion']:
+            while core_expansion_number < config['max_single_core_expansion']:
 
                 start = time.perf_counter()
                 result = opt.solve(matching_model, logfile=None)
                 end = time.perf_counter()
                 
-                # matching_model.load(result)
-                
                 if end - start >= config['core_expansion']['time_limit']:
-                    print('(tmlim)', end='')
+                    print('tmlim')
                     break
                 
                 matching = get_matching_from_max_matching_model(matching_model, result)
 
-                # print(matching)
-
                 if len(matching) != len(core.components):
-                    print('(no sol)', end='')
+                    print('nosol')
                     break
 
-                print('(ok)', end='')
+                print('.', end='')
 
-                expanded_cores.append(get_core_from_matching(core, matching)) # type: ignore
+                expanded_cores.append(get_core_from_matching(core, matching, day_name)) # type: ignore
                 ban_matching_from_model(matching_model, matching)
 
                 core_expansion_number += 1
             
             if core_expansion_number >= config['max_single_core_expansion']:
-                print('(maxcut)', end='')
-    
-    print('')
+                print('maxcut')
 
     return expanded_cores
+
+
+def get_subsumptions(instance: MasterInstance, config) -> dict[CareUnitName, dict[DayName, set[DayName]]]:
+
+    subsumptions: dict[CareUnitName, dict[DayName, set[DayName]]] = {}
+
+    # Nomi delle unità di cura toccate
+    care_unit_names: set[CareUnitName] = set()
+    for day in instance.days.values():
+        care_unit_names.update(day.care_units.keys())
+    
+    opt = pyo.SolverFactory('gurobi')
+    opt.options['TimeLimit'] = config['subsumption']['time_limit']
+    opt.options['SoftMemLimit'] = config['subsumption']['memory_limit']
+
+    # Generazione della relazione di minore o uguale per ogni unità di cura
+    for care_unit_name in care_unit_names:
+        subsumptions[care_unit_name] = {}
+
+        # Ogni giorno ricerca i suoi minori o uguali
+        for big_day_name, big_day in instance.days.items():
+            if care_unit_name not in big_day.care_units:
+                continue
+
+            subsumptions[care_unit_name][big_day_name] = set()
+
+            for small_day_name, small_day in instance.days.items():
+                if big_day_name == small_day_name:
+                    continue
+                if care_unit_name not in small_day.care_units:
+                    continue
+                if small_day_name in subsumptions[care_unit_name][big_day_name]:
+                    continue
+
+                subsumption_model = get_subsumption_model(big_day.care_units[care_unit_name], small_day.care_units[care_unit_name])
+
+                start = time.perf_counter()
+                result = opt.solve(subsumption_model, logfile=None)
+                end = time.perf_counter()
+
+                if end - start >= config['core_expansion']['time_limit']:
+                    continue
+
+                if subsumption_model_has_solution(subsumption_model, result):
+                    subsumptions[care_unit_name][big_day_name].add(small_day_name)
+                    if small_day_name in subsumptions[care_unit_name]:
+                        subsumptions[care_unit_name][big_day_name].update(subsumptions[care_unit_name][small_day_name])
+
+    return subsumptions
