@@ -44,7 +44,7 @@ from src.cores.generalist_cores import get_generalist_cores
 from src.cores.basic_cores import get_basic_fat_cores, get_basic_slim_cores
 from src.cores.reduced_cores import get_reduced_fat_cores, get_reduced_slim_cores
 from src.cores.pruned_cores import get_pruned_fat_cores, get_pruned_slim_cores
-from src.cores.core_expansion import expand_cores
+from src.cores.core_expansion import expand_cores, get_subsumptions
 from src.cores.tools import aggregate_core_lists
 
 from src.analyzers.tools import get_result_value, get_day_number_used_by_patients
@@ -236,6 +236,14 @@ def solve_instance(
     end = time.perf_counter()
     print(f'done ({end - start:.04}s)')
 
+    # Ottenimento delle relazioni di minore o uguale sui giorni, per espanderli
+    if config['core_day_expansion']:
+        print('[CORE] Start subsumption computation...', end='')
+        subsumptions = get_subsumptions(master_instance, config)
+        print('ended')
+    else:
+        subsumptions = None
+
     ############################ INIZIO ITERAZIONI #############################
 
     iteration_index = 0
@@ -354,10 +362,12 @@ def solve_instance(
                 print(f'**************************** [END OF ITERATION {iteration_index:03}] ****************************')
                 break
         
-        if config['use_cache']:
+        if config['use_cache'] and iteration_index > 1:
             previous_cache_day_iterations = get_previous_cache_day_iterations(cache, master_result)
             if len(previous_cache_day_iterations) > 0:
                 print(f'[iter {iteration_index}] [CACHE] Found {len(previous_cache_day_iterations)} days already solved in cache')
+            else: 
+                print(f'[iter {iteration_index}] [CACHE] No already solved days found in cache')
 
         ############################## FINE CACHE ##############################
         
@@ -386,7 +396,7 @@ def solve_instance(
                 return 4
 
             # Copia del risultato del giorno corrente se trovato nella cache
-            if config['use_cache'] and day_name in previous_cache_day_iterations: # type: ignore
+            if config['use_cache'] and iteration_index > 1 and day_name in previous_cache_day_iterations: # type: ignore
 
                 iteration_name: IterationName = previous_cache_day_iterations[day_name] # type: ignore
 
@@ -713,12 +723,9 @@ def solve_instance(
         # Espansione dei core
         if config['core_patient_expansion'] or config['core_service_expansion'] or config['core_operator_expansion'] or config['core_day_expansion']:
             print(f'[iter {iteration_index}] [CORE] Starting core expansion')
-            expanded_cores = expand_cores(cores, all_possible_master_requests, config)
-            print(f'[iter {iteration_index}] [CORE] End of core expansion. Found {len(expanded_cores)} cores from starting {len(cores)} cores')
+            expanded_cores = expand_cores(cores, all_possible_master_requests, master_instance.services, config, subsumptions)
+            print(f'[iter {iteration_index}] [CORE] End of core expansion. Found {len(expanded_cores)} cores from starting with {len(cores)} cores')
 
-            with open(iteration_path.joinpath(f'expanded_cores_pre_checks.json'), 'w') as file:
-                json.dump(encode_cores(expanded_cores), file, indent=4)
-                
             # Se per qualche motivo l'espansione non ha prodotto il caso
             # denegenere a->a, aggiungilo e rimuovi eventuali duplicati
             cores = aggregate_core_lists(cores, expanded_cores)
