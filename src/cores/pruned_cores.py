@@ -260,10 +260,12 @@ def get_pruned_fat_cores(
                         print(f'ERROR: {error}')
                     return []
 
-                print(f' {component_index}')
+                print(f' {component_index + 1}')
                 if is_instance_fully_satisfiable(cloned_instance, config):
                     irreducible_components.append(component)
                     print('y', end='')
+                else:
+                    print('x', end='')
             
             print('')
             
@@ -390,11 +392,13 @@ def get_pruned_slim_cores(
                         print(f'ERROR: {error}')
                     return []
 
-                print(f' {component_index}', end='')
+                print(f' {component_index + 1}', end='')
 
                 if is_instance_fully_satisfiable(cloned_instance, config):
                     irreducible_components.append(component)
                     print('y', end='')
+                else:
+                    print('x', end='')
             
             print('')
 

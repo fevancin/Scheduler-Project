@@ -121,11 +121,11 @@ def compose_final_result(
     return final_result
 
 
-def get_worst_fat_case_scenario(instance: MasterInstance) -> FatMasterResult:
+def get_all_possible_fat_master_requests(instance: MasterInstance) -> dict[DayName, list[PatientServiceOperator]]:
     '''Calcolo dell'elenco di tutte le richieste che potrebbero verificarsi,
     con l'operatore.'''
 
-    worst_case_result = FatMasterResult()
+    all_possible_master_requests: dict[DayName, list[PatientServiceOperator]] = {}
 
     # Scorri tutte le finestre
     for patient_name, patient in instance.patients.items():
@@ -144,19 +144,19 @@ def get_worst_fat_case_scenario(instance: MasterInstance) -> FatMasterResult:
                         request = PatientServiceOperator(patient_name, service_name, operator_name)
                         
                         # Aggiungi la richiesta
-                        if day_name not in worst_case_result.scheduled:
-                            worst_case_result.scheduled[day_name] = []
-                        if request not in worst_case_result.scheduled[day_name]:
-                            worst_case_result.scheduled[day_name].append(request)
+                        if day_name not in all_possible_master_requests:
+                            all_possible_master_requests[day_name] = []
+                        if request not in all_possible_master_requests[day_name]:
+                            all_possible_master_requests[day_name].append(request)
 
-    return worst_case_result
+    return all_possible_master_requests
 
 
-def get_worst_slim_case_scenario(instance: MasterInstance) -> SlimMasterResult:
+def get_all_possible_slim_master_requests(instance: MasterInstance) -> dict[DayName, list[PatientService]]:
     '''Calcolo dell'elenco di tutte le richieste che potrebbero verificarsi,
     senza l'operatore.'''
 
-    worst_case_result = SlimMasterResult()
+    all_possible_master_requests: dict[DayName, list[PatientService]] = {}
 
     # Scorri tutte le finestre
     for patient_name, patient in instance.patients.items():
@@ -169,12 +169,12 @@ def get_worst_slim_case_scenario(instance: MasterInstance) -> SlimMasterResult:
                 for day_name in range(window.start, window.end + 1):
                     
                     # Aggiungi la richiesta
-                    if day_name not in worst_case_result.scheduled:
-                        worst_case_result.scheduled[day_name] = []
-                    if request not in worst_case_result.scheduled[day_name]:
-                        worst_case_result.scheduled[day_name].append(request)
+                    if day_name not in all_possible_master_requests:
+                        all_possible_master_requests[day_name] = []
+                    if request not in all_possible_master_requests[day_name]:
+                        all_possible_master_requests[day_name].append(request)
 
-    return worst_case_result
+    return all_possible_master_requests
 
 
 def get_slim_subproblem_instance_from_final_result(

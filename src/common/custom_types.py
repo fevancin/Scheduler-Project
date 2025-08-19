@@ -68,30 +68,30 @@ class Window:
         return ((self.start <= window.start and self.end >= window.start) or
                 (window.start <= self.start and window.end >= self.start))
 
-@dataclass(unsafe_hash=True, eq=True)
+@dataclass(unsafe_hash=True, eq=True, order=True)
 class PatientService:
     patient_name: PatientName
     service_name: ServiceName
 
-@dataclass(unsafe_hash=True, eq=True)
+@dataclass(unsafe_hash=True, eq=True, order=True)
 class ServiceWindow:
     service_name: ServiceName
     window: Window
 
-@dataclass(unsafe_hash=True, eq=True)
+@dataclass(unsafe_hash=True, eq=True, order=True)
 class ServiceOperator:
     service_name: ServiceName
     operator_name: OperatorName
 
-@dataclass(unsafe_hash=True, eq=True)
+@dataclass(unsafe_hash=True, eq=True, order=True)
 class PatientServiceWindow(PatientService):
     window: Window
 
-@dataclass(unsafe_hash=True, eq=True)
+@dataclass(unsafe_hash=True, eq=True, order=True)
 class PatientServiceOperator(PatientService):
     operator_name: OperatorName
 
-@dataclass(unsafe_hash=True, eq=True)
+@dataclass(unsafe_hash=True, eq=True, order=True)
 class PatientServiceOperatorTimeSlot(PatientServiceOperator):
     time_slot: TimeSlot
 
@@ -232,4 +232,5 @@ class FatCore(AbstractCore):
                 return False
         return True
 
-type Arc = tuple[PatientService, PatientService] | tuple[PatientServiceOperator, PatientServiceOperator]
+type SlimArc = tuple[PatientService, PatientService]
+type FatArc = tuple[PatientServiceOperator, PatientServiceOperator]

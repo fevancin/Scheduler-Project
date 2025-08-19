@@ -17,7 +17,7 @@ from src.common.custom_types import FatMasterResult, FatSubproblemInstance, Slim
 from src.common.custom_types import CacheMatch, PatientServiceOperator, IterationName
 from src.common.tools import get_subproblem_instance_from_master_result, compose_final_result
 from src.common.tools import is_combination_to_do, get_slim_subproblem_instance_from_fat
-from src.common.tools import get_worst_fat_case_scenario, get_worst_slim_case_scenario
+from src.common.tools import get_all_possible_fat_master_requests, get_all_possible_slim_master_requests
 from src.common.tools import remove_requests_not_present
 from src.common.file_load_and_dump import decode_master_instance, encode_master_instance, encode_master_result
 from src.common.file_load_and_dump import encode_subproblem_instance, encode_subproblem_result
@@ -44,9 +44,10 @@ from src.cores.generalist_cores import get_generalist_cores
 from src.cores.basic_cores import get_basic_fat_cores, get_basic_slim_cores
 from src.cores.reduced_cores import get_reduced_fat_cores, get_reduced_slim_cores
 from src.cores.pruned_cores import get_pruned_fat_cores, get_pruned_slim_cores
-# from src.cores.core_expansion import expand_cores
+from src.cores.core_expansion import expand_cores
+from src.cores.tools import aggregate_core_lists
 
-from src.analyzers.tools import get_result_value, get_days_number_used_by_patients
+from src.analyzers.tools import get_result_value, get_day_number_used_by_patients
 
 
 # Questo script può essere chiamato solo direttamente dalla linea di comando
@@ -216,14 +217,14 @@ def solve_instance(
     # Ottenimento di tutte le possibili richieste ottenibili per ogni giorno.
     # Dati utilizzati nell'espansione dei core
     if config['structure_type'] in ['fat-slim', 'fat-fat']:
-        worst_case_result = get_worst_fat_case_scenario(master_instance)
+        all_possible_master_requests = get_all_possible_fat_master_requests(master_instance)
     else:
-        worst_case_result = get_worst_slim_case_scenario(master_instance)
+        all_possible_master_requests = get_all_possible_slim_master_requests(master_instance)
     
     # Numero totale massimo di giorni in cui i pazienti potrebbero avere
     # richieste. Utilizzato nel caso si voglia minimizzare i trip ospedalieri
     # ('minimize_hospital_accesses' nella configurazione del master)
-    worst_case_day_number = get_days_number_used_by_patients(worst_case_result)
+    worst_case_day_number = get_day_number_used_by_patients(all_possible_master_requests)
 
     # Creazione del modello MILP del master
     print('[MASTER] Start master model creation...', end='')
@@ -416,6 +417,7 @@ def solve_instance(
                     subproblem_model = get_fat_subproblem_model(subproblem_instance, config['subproblem']['additional_info']) # type: ignore
                 else:
                     subproblem_model = get_slim_subproblem_model(subproblem_instance) # type: ignore
+                
                 end = time.perf_counter()
                 print(f'done ({end - start:.04}s) ', end='')
 
@@ -569,7 +571,7 @@ def solve_instance(
         # Riallinea le richieste che ha assegnato il sottoproblema fat con
         # quelle che il master aveva proposto. I core devono ovviamente avere a
         # che fare con le richieste reali del master
-        if config['structure-type'] == 'fat-fat':
+        if config['structure_type'] == 'fat-fat':
 
             # Ogni risultato del sottoproblema, se ha qualcosa di non assegnato,
             # viene corretto ripristinando la richiesta originaria del master
@@ -709,10 +711,27 @@ def solve_instance(
         print(f'[iter {iteration_index}] [CORE] Cores creation done')
 
         # Espansione dei core
-        # if config['core_patient_service_expansion'] or config['core_operator_expansion'] or config['core_day_expansion']:
-        #     print(f'[iter {iteration_index}] [CORE] Starting core expansion')
-        #     expand_cores(cores, worst_case_result, config)
-        #     print(f'[iter {iteration_index}] [CORE] End of core expansion. Found {len(cores)} cores')
+        if config['core_patient_expansion'] or config['core_service_expansion'] or config['core_operator_expansion'] or config['core_day_expansion']:
+            print(f'[iter {iteration_index}] [CORE] Starting core expansion')
+            expanded_cores = expand_cores(cores, all_possible_master_requests, config)
+            print(f'[iter {iteration_index}] [CORE] End of core expansion. Found {len(expanded_cores)} cores from starting {len(cores)} cores')
+
+            with open(iteration_path.joinpath(f'expanded_cores_pre_checks.json'), 'w') as file:
+                json.dump(encode_cores(expanded_cores), file, indent=4)
+                
+            # Se per qualche motivo l'espansione non ha prodotto il caso
+            # denegenere a->a, aggiungilo e rimuovi eventuali duplicati
+            cores = aggregate_core_lists(cores, expanded_cores)
+            print(f'[iter {iteration_index}] [CORE] {len(cores)} cores remaining after aggregate and duplicate removal')
+
+            with open(iteration_path.joinpath(f'expanded_cores.json'), 'w') as file:
+                json.dump(encode_cores(cores), file, indent=4)
+            
+            errors = check_cores(master_instance, cores)
+            if len(errors) > 0:
+                for error in errors:
+                    print(f'[iter {iteration_index}] [CORE] ERROR: {error}')
+                return 14
 
         # Aggiunta dei vincoli dei core nel master
         if config['structure_type'] in ['fat-slim', 'fat-fat']:

@@ -1,7 +1,8 @@
 from pathlib import Path
 
 from src.common.custom_types import MasterInstance, FatMasterResult, SlimMasterResult, FinalResult
-from src.common.custom_types import PatientName, DayName
+from src.common.custom_types import PatientName, DayName, PatientService, PatientServiceOperator
+from src.common.custom_types import PatientServiceOperatorTimeSlot
 
 def analyze_log(log_path: Path) -> dict[str, int | float | str]:
 
@@ -56,10 +57,10 @@ def analyze_log(log_path: Path) -> dict[str, int | float | str]:
 
     return analysis
 
-def get_days_number_used_by_patients(result: FatMasterResult | SlimMasterResult | FinalResult) -> int:
+def get_day_number_used_by_patients(all_days_requests: dict[DayName, list[PatientServiceOperator]] | dict[DayName, list[PatientService]] | dict[DayName, list[PatientServiceOperatorTimeSlot]]) -> int:
 
     day_used_by_patient: dict[PatientName, set[DayName]] = {}
-    for day_name, requests in result.scheduled.items():
+    for day_name, requests in all_days_requests.items():
         for request in requests:
             if request.patient_name not in day_used_by_patient:
                 day_used_by_patient[request.patient_name] = set()
@@ -92,6 +93,7 @@ def get_result_value(
                     value += instance.services[service_name].duration * instance.patients[patient_name].priority
 
     if 'minimize_hospital_accesses' in additional_info and worst_case_day_number is not None:
-        value -= get_days_number_used_by_patients(result) / worst_case_day_number
+        all_days_requests = result.scheduled
+        value -= get_day_number_used_by_patients(all_days_requests) / worst_case_day_number
 
     return value
