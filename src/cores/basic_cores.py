@@ -19,7 +19,7 @@ def get_basic_fat_cores(results: dict[DayName, FatSubproblemResult]) -> list[Fat
         
             core = FatCore(
                 components=[rejected_request],
-                days=[day_name],
+                day=day_name,
                 reason=[rejected_request])
 
             # Ogni richiesta soddisfatta viene copiata
@@ -54,7 +54,7 @@ def get_basic_slim_cores(results: dict[DayName, SlimSubproblemResult]) -> list[S
         
             core = SlimCore(
                 components=[rejected_request],
-                days=[day_name],
+                day=day_name,
                 reason=[rejected_request])
 
             # Ogni richiesta soddisfatta viene copiata

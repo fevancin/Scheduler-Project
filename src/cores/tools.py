@@ -16,18 +16,9 @@ def is_core_included(core: FatCore | SlimCore, cores: list[FatCore] | list[SlimC
         # Controlli sulla dimensione degli attributi per una veloce cernita
         if len(core.components) != len(other_core.components):
             continue
-        if len(core.days) != len(other_core.days):
+        if core.day != other_core.day:
             continue
         if len(core.reason) != len(other_core.reason):
-            continue
-        
-        # I core, per essere uguali, devono valere sugli stessi giorni
-        are_days_equal = True
-        for day in core.days:
-            if day not in other_core.days:
-                are_days_equal = False
-                break
-        if not are_days_equal:
             continue
 
         # I core, per essere uguali, devono avere le stesse componenti

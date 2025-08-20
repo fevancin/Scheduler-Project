@@ -169,7 +169,7 @@ def get_pruned_fat_cores(
         
         # Il calcolo verrà eseguito su una copia dell'istanza del giorno del
         # core
-        instance = instances[core.days[0]]
+        instance = instances[core.day]
         cloned_instance = FatSubproblemInstance(
             services=instance.services,
             day=instance.day)
@@ -289,7 +289,7 @@ def get_pruned_slim_cores(
         if len(core.components) <= 1:
             continue
 
-        day_name = core.days[0]
+        day_name = core.day
 
         # Ottenimento della metrica euristica con cui selezionare le richieste
         # (fat anche se i core sono slim per avere più granellazione)
@@ -303,7 +303,7 @@ def get_pruned_slim_cores(
 
         # Il calcolo verrà eseguito su una copia dell'istanza del giorno del
         # core
-        instance = instances[core.days[0]]
+        instance = instances[core.day]
         cloned_instance = SlimSubproblemInstance(
             services=instance.services,
             day=instance.day)

@@ -20,12 +20,12 @@ def get_generalist_cores(
         if isinstance(result, FatSubproblemResult):
             core = FatCore(
                 components=result.rejected.copy(),
-                days=[day_name],
+                day=day_name,
                 reason=result.rejected)
         else:
             core = SlimCore(
                 components=result.rejected.copy(),
-                days=[day_name],
+                day=day_name,
                 reason=result.rejected)
 
         # Ogni richiesta soddisfatta viene copiata

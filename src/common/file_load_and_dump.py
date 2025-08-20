@@ -340,13 +340,9 @@ def decode_cores(obj) -> list[FatCore] | list[SlimCore]:
     for core_obj in obj:
         
         if is_fat:
-            core = FatCore()
+            core = FatCore(core_obj['day'])
         else:
-            core = SlimCore()
-
-        for day_name in core_obj['days']:
-            
-            core.days.append(int(day_name))
+            core = SlimCore(core_obj['day'])
 
         for reason in core_obj['reason']:
             if is_fat:
@@ -382,7 +378,7 @@ def encode_cores(cores: list[FatCore] | list[SlimCore]):
 
         obj = {
             'reason': [],
-            'days': [],
+            'day': core.day,
             'components': []
         }
 
@@ -399,9 +395,6 @@ def encode_cores(cores: list[FatCore] | list[SlimCore]):
                     'patient': reason.patient_name,
                     'service': reason.service_name
                 })
-        
-        for day_name in core.days:
-            obj['days'].append(day_name)
         
         if isinstance(core, FatCore):
             for component in core.components:

@@ -180,7 +180,7 @@ if 'best_instance' in config['plots_to_do'] or 'best_instance_subproblems' in co
                 with open(cores_path, 'r') as file:
                     cores = decode_cores(json.load(file))
                 
-                core_days = set(day_name for core in cores for day_name in core.days)
+                core_days = set(core.day for core in cores)
                 all_subproblem_result: dict[DayName, FatSubproblemResult] | dict[DayName, SlimSubproblemResult] = {}
 
                 for day_name in core_days:

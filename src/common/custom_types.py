@@ -204,7 +204,7 @@ class FinalResult(AbstractMasterResult):
 
 @dataclass
 class AbstractCore:
-    days: list[DayName] = field(default_factory=list)
+    day: DayName
 
 @dataclass
 class SlimCore(AbstractCore):

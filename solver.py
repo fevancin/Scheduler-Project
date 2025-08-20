@@ -519,7 +519,7 @@ def solve_instance(
                 if not are_equal_solutions:
                     print(f'[iter {iteration_index}] [CORE] Day {day_name} has no rejected request but a different solution')
                     preemptive_cores.append(FatCore(
-                        days=[day_name],
+                        day=day_name,
                         reason=[master_scheduled_requests[0]],
                         components=master_scheduled_requests))
             

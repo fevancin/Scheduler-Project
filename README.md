@@ -167,9 +167,6 @@ Same than fat master results with:
 - min_core_reason_size
 - max_core_reason_size
 - average_core_reason_size
-- min_core_days_number
-- max_core_days_number
-- average_core_days_number
 - min_patient_number_per_core
 - max_patient_number_per_core
 - average_patient_number_per_core

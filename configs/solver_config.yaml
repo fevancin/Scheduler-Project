@@ -3,21 +3,9 @@
 # diventerà parte del nome della cartella contenente i risultati.
 groups:
 
-    # fat_slim:
-    #     structure_type: 'fat-slim'
-    #     core_type: 'pruned'
-    # fat_fat:
-    #     structure_type: 'fat-fat'
-    #     core_type: 'pruned'
-    # slim_fat_pruned:
-    #     structure_type: 'slim-fat'
-    #     core_type: 'pruned'
-    # slim_fat_reduced:
-    #     structure_type: 'slim-fat'
-    #     core_type: 'reduced'
-    # slim_fat_basic:
-    #     structure_type: 'slim-fat'
-    #     core_type: 'basic'
+    test:
+        groups_to_do: ['32pat_4cu_2op']
+        instances_to_do: ['inst_00']
 
 # Template di base che sarà ripetuto per ognuno dei processi: i valori già
 # presenti verranno sovrascritti.
@@ -59,7 +47,7 @@ base:
     core_patient_expansion: true
     core_service_expansion: true
     core_operator_expansion: true # utile solo per master 'fat'
-    core_day_expansion: false
+    core_day_expansion: true
 
     # Numero massimo di core che possono essere generati dall'anonimizzazione a
     # partire da quello correntemente analizzato

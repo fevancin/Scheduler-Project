@@ -63,16 +63,15 @@ def get_expansion_arcs(
 
 def get_core_from_matching(
         core: FatCore | SlimCore,
-        matching: set[SlimArc] | set[FatArc],
-        day_name: DayName) -> FatCore | SlimCore:
+        matching: set[SlimArc] | set[FatArc]) -> FatCore | SlimCore:
     """Rinomina del core con i dati presenti nel matching. Eventuali nomi non
     presenti saranno copiati senza modifiche. Questa funzione non modifica il
     core di input."""
 
     if isinstance(core, FatCore):
-        matched_core = FatCore(days=[day_name])
+        matched_core = FatCore(day=core.day)
     else:
-        matched_core = SlimCore(days=[day_name])
+        matched_core = SlimCore(day=core.day)
 
     # Ogni componente del core andrà rinominata, se esiste nel matching
     for component in core.components:
@@ -121,31 +120,24 @@ def expand_cores(
     print(f'Expanding {len(cores)} cores')
     for core_index, core in enumerate(cores):
 
-        # Se l'espansione dei giorni non è attiva
-        if not config['core_day_expansion'] or subsumptions is None:
-            days_to_do = set(core.days)
-        
-        # Se invece bisogna espandere i giorni
-        else:
+        # Insieme di giorni su cui il core verrà espanso
+        days_to_do: set[DayName] = set([core.day])
+
+        # Se bisogna espandere i giorni
+        if config['core_day_expansion'] and subsumptions is not None:
 
             # Insieme di tutte le unità di cura toccate dal core corrente
             care_unit_affected: set[CareUnitName] = set()
             for component in core.components:
                 care_unit_affected.add(services[component.service_name].care_unit_name)
 
-            # Insieme di giorni espansi
-            days_to_do: set[DayName] = set(core.days)
-
-            # Ogni giorno del core verrà espanso e si prenderà la loro unione
-            for day_name in core.days:
-                
-                # Elenco di giorni più piccoli o uguali al giorno corrente in
-                # tutte le unità di cura toccate
-                smaller_days: set[DayName] = subsumptions[care_unit_affected.pop()][day_name]
-                for care_unit_name in care_unit_affected:
-                    smaller_days.intersection_update(subsumptions[care_unit_name][day_name])
-                
-                days_to_do.update(smaller_days)
+            # Elenco di giorni più piccoli o uguali al giorno corrente in
+            # tutte le unità di cura toccate
+            smaller_days: set[DayName] = subsumptions[care_unit_affected.pop()][core.day]
+            for care_unit_name in care_unit_affected:
+                smaller_days.intersection_update(subsumptions[care_unit_name][core.day])
+            
+            days_to_do.update(smaller_days)
 
         for day_name in days_to_do:
 
@@ -177,7 +169,9 @@ def expand_cores(
 
                 print('.', end='')
 
-                expanded_cores.append(get_core_from_matching(core, matching, day_name)) # type: ignore
+                expanded_core = get_core_from_matching(core, matching)
+                expanded_core.day = day_name
+                expanded_cores.append(expanded_core) # type: ignore
                 ban_matching_from_model(matching_model, matching)
 
                 core_expansion_number += 1

@@ -8,14 +8,11 @@ def check_cores(instance: MasterInstance, cores: list[FatCore] | list[SlimCore])
         
         if len(core.reason) == 0:
             errors.append('a core has no reason')
-        if len(core.days) == 0:
-            errors.append('a core has no days')
         if len(core.components) == 0:
             errors.append('a core has no components')
         
-        for day_name in core.days:
-            if day_name not in instance.days:
-                errors.append(f'day {day_name} is not present in the instance')
+        if core.day not in instance.days:
+            errors.append(f'day {core.day} is not present in the instance')
         
         for reason in core.reason:
 
@@ -51,19 +48,17 @@ def check_cores(instance: MasterInstance, cores: list[FatCore] | list[SlimCore])
             if service_name not in instance.patients[patient_name].requests:
                 errors.append(f'service {service_name} is not requested by patient {patient_name}')
             
-            for day_name in core.days:
-                
-                if isinstance(component, PatientServiceOperator):
-                    operator_name = component.operator_name
-                    if operator_name not in instance.days[day_name].operators:
-                        errors.append(f'operator {operator_name} does not exists in day {day_name}')
-                
-                window_found = False
-                for window in instance.patients[patient_name].requests[service_name]:
-                    if window.start <= day_name and window.end >= day_name:
-                        window_found = True
-                        break
-                if not window_found:
-                    errors.append(f'patient {patient_name} has no window for service {service_name} in day {day_name}')
+            if isinstance(component, PatientServiceOperator):
+                operator_name = component.operator_name
+                if operator_name not in instance.days[core.day].operators:
+                    errors.append(f'operator {operator_name} does not exists in day {core.day}')
+            
+            window_found = False
+            for window in instance.patients[patient_name].requests[service_name]:
+                if window.start <= core.day and window.end >= core.day:
+                    window_found = True
+                    break
+            if not window_found:
+                errors.append(f'patient {patient_name} has no window for service {service_name} in day {core.day}')
 
     return errors

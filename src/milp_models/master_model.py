@@ -117,15 +117,16 @@ def add_core_constraints_to_slim_master_model(model: pyo.ConcreteModel, cores: l
     for core in cores:
         
         expr = 1
-        for d in core.days:
-            for component in core.components:
-                
-                p = component.patient_name
-                s = component.service_name
-                
-                expr += model.do[p, s, d] # type: ignore
+        d = core.day
+        
+        for component in core.components:
             
-            model.cores.add(expr=expr <= len(core.components)) # type: ignore
+            p = component.patient_name
+            s = component.service_name
+            
+            expr += model.do[p, s, d] # type: ignore
+        
+        model.cores.add(expr=expr <= len(core.components)) # type: ignore
 
 def get_result_from_slim_master_model(model: pyo.ConcreteModel) -> SlimMasterResult:
 
@@ -272,16 +273,17 @@ def add_core_constraints_to_fat_master_model(model: pyo.ConcreteModel, cores: li
     for core in cores:
         
         expr = 1
-        for d in core.days:
-            for component in core.components:
-                
-                p = component.patient_name
-                s = component.service_name
-                o = component.operator_name
-                
-                expr += model.do[p, s, d, o] # type: ignore
+        d = core.day
+
+        for component in core.components:
             
-            model.cores.add(expr=expr <= len(core.components)) # type: ignore
+            p = component.patient_name
+            s = component.service_name
+            o = component.operator_name
+            
+            expr += model.do[p, s, d, o] # type: ignore
+        
+        model.cores.add(expr=expr <= len(core.components)) # type: ignore
 
 def get_result_from_fat_master_model(model: pyo.ConcreteModel) -> FatMasterResult:
 

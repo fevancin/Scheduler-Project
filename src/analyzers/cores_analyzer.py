@@ -6,7 +6,6 @@ def analyze_cores(instance: MasterInstance, cores: list[FatCore] | list[SlimCore
     
     core_size = [len(core.components) for core in cores]
     core_reason_sizes = [len(core.reason) for core in cores]
-    core_days_number = [len(core.days) for core in cores]
 
     patient_number_per_core = [len(set(component.patient_name for component in core.components)) for core in cores]
     care_unit_number_per_core = [len(set(instance.services[component.service_name].care_unit_name for component in core.components)) for core in cores]
@@ -19,7 +18,7 @@ def analyze_cores(instance: MasterInstance, cores: list[FatCore] | list[SlimCore
     for core in cores:
         total_core_duration = sum(instance.services[component.service_name].duration for component in core.components)
         total_duration_per_core.append(total_core_duration)
-        core_day_saturation_percentage.append(total_core_duration / total_operator_duration_per_day[core.days[0]])
+        core_day_saturation_percentage.append(total_core_duration / total_operator_duration_per_day[core.day])
 
     analysis = {
         'core_number': cores_number,
@@ -31,10 +30,6 @@ def analyze_cores(instance: MasterInstance, cores: list[FatCore] | list[SlimCore
         'min_core_reason_size': min(core_reason_sizes),
         'max_core_reason_size': max(core_reason_sizes),
         'average_core_reason_size': sum(core_reason_sizes) / cores_number,
-        
-        'min_core_days_number': min(core_days_number),
-        'max_core_days_number': max(core_days_number),
-        'average_core_days_number': sum(core_days_number) / cores_number,
         
         'min_patient_number_per_core': min(patient_number_per_core),
         'max_patient_number_per_core': max(patient_number_per_core),

@@ -121,7 +121,7 @@ def plot_core_gantt(
     space_between_operators = 1.0
 
     for core_index, core in enumerate(cores):
-        day_name = core.days[0]
+        day_name = core.day
         if day_name not in all_subproblem_result:
             print(f'day {day_name} does not have subproblem result')
             continue
