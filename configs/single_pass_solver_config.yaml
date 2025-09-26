@@ -1,0 +1,53 @@
+# Aggiungere un oggetto per ogni processo risolutivo. Le proprietà già
+# presenti nel template di base saranno sovrascritte. La chiave dell'oggetto
+# diventerà parte del nome della cartella contenente i risultati.
+groups:
+
+    monolithic:
+        groups_to_do: ['64pat_4cu_2op']
+        instances_to_do: ['all']
+
+# Template di base che sarà ripetuto per ognuno dei processi: i valori già
+# presenti verranno sovrascritti.
+base:
+
+    # Elenco dei nomi di processi da eseguire e da evitare. Aggiungere 'all' per
+    # selezionare tutto.
+    configs_to_do: ['all']
+    configs_to_avoid: []
+
+    # Elenco dei nomi di gruppi di istanze da eseguire e da evitare. Aggiungere
+    # 'all' per selezionare tutto.
+    groups_to_do: ['all']
+    groups_to_avoid: []
+
+    # Elenco dei nomi di istanze da eseguire e da evitare. Aggiungere 'all'
+    # per selezionare tutto.
+    instances_to_do: ['all']
+    instances_to_avoid: []
+
+    # Configurazione che specifica la struttura dei modelli della risoluzione.
+    problem_type: 'monolithic' # 'monolithic', 'fat-master', 'slim-master', 'fat-subproblem', 'slim-subproblem'
+
+    # Informazioni relative al solutore del problema master
+    solver:
+        time_limit: 600 # in secondi
+        memory_limit: 16 # in GB
+        additional_info: [
+
+            # Penalizza in funzione obiettivo i pazienti che utilizzano tanti
+            # giorni.
+            # 'minimize_hospital_accesses'
+
+            # Utilizzato solo nei modelli 'fat-subproblem' o 'monolithic'. La
+            # durata totale dei servizi assegnati ad un singolo operatore non
+            # può essere maggiore della durata dell'operatore stesso. Questo
+            # taglio coincide coi vincoli di capacità sull'operatore nel caso
+            # 'slim' e pertanto sarebbe duplicato.
+            'use_redundant_operator_cut',
+
+            # Utilizzato solo nel modello 'monolithic'. La durata totale dei
+            # servizi assegnati ad un singolo paziente non può essere maggiore
+            # dello span massimo di un certo giorno.
+            'use_redundant_patient_cut'
+        ]
