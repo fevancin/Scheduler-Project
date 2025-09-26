@@ -173,7 +173,7 @@ def solve_instance(
         config,
         output_path: Path,
         iteration_summary_lines: list[str]) -> int:
-    '''FUnzione che esegue il ciclo di iterazioni necessario per risolvere una
+    '''Funzione che esegue il ciclo di iterazioni necessario per risolvere una
     istanza del problema master con la configurazione fornita.'''
     
     cache: Cache = {}
@@ -200,7 +200,7 @@ def solve_instance(
     with open(output_path.joinpath('master_instance.json'), 'w') as file:
         json.dump(encode_master_instance(master_instance), file, indent=4)
     
-    # Copia della conigurazione nella cartella dei risultati
+    # Copia della configurazione nella cartella dei risultati
     with open(output_path.joinpath('config.yaml'), 'w') as file:
         yaml.dump(config, file, indent=4, sort_keys=False)
 
