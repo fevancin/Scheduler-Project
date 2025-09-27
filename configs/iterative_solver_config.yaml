@@ -4,8 +4,8 @@
 groups:
 
     test:
-        groups_to_do: ['32pat_4cu_2op']
-        instances_to_do: ['inst_00']
+        groups_to_do: ['all']
+
 
 # Template di base che sarà ripetuto per ognuno dei processi: i valori già
 # presenti verranno sovrascritti.
@@ -35,27 +35,27 @@ base:
     structure_type: 'slim-fat' # 'slim-fat', 'fat-slim', 'fat-fat'
 
     # Informazioni sul calcolo dei core (tagli di correttezza)
-    core_type: 'pruned' # generalist, basic, reduced, pruned
+    core_type: 'generalist' # generalist, basic, reduced, pruned
     
     # Dopo la potatura dei core prova a rimuovere una alla volta le componenti
     # e tenta la soddisfacibilità per controllare che il sottoinsieme di
     # richieste restituito sia effettivamente irriducibile (ogni componente sia
     # necessaria)
-    post_pruning_irreducibility: true
+    post_pruning_irreducibility: false
     
     # Tipologie di anonimizzazione dei core
-    core_patient_expansion: true
-    core_service_expansion: true
-    core_operator_expansion: true # utile solo per master 'fat'
-    core_day_expansion: true
+    core_patient_expansion: false
+    core_service_expansion: false
+    core_operator_expansion: false # utile solo per master 'fat'
+    core_day_expansion: false
 
     # Numero massimo di core che possono essere generati dall'anonimizzazione a
     # partire da quello correntemente analizzato
-    max_single_core_expansion: 10
+    max_single_core_expansion: 32
 
     # Flag che controll l'utilizzo della cache per ottenere soluzioni da
     # risultati precedenti
-    use_cache: true
+    use_cache: false
 
     # Numero massimo di iterazioni da eseguire
     max_iteration: 50
@@ -99,7 +99,7 @@ base:
             # funzione obiettivo), aggiungi al master un taglio di tipo core
             # per evitare nuovamente tale richiesta. Questo taglio è ridondante
             # in quanto non impatta sul valore della funzione obiettivo finale.
-            'preemptive_forbidding'
+            # 'preemptive_forbidding'
         ]
     
     # Informazioni relative al solutore della cache
