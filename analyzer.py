@@ -23,7 +23,7 @@ if __name__ != '__main__':
     exit(0)
 
 
-def write_excel_sheet(df: pd.DataFrame, writer:pd.ExcelWriter, sheet_name: str):
+def write_excel_sheet(df: pd.DataFrame, writer: pd.ExcelWriter, sheet_name: str):
     '''Funzione che crea una pagina Excel con i dati forniti dal DataFrame.'''
 
     df.to_excel(writer, sheet_name=sheet_name, index=False, na_rep='NaN')
@@ -85,22 +85,24 @@ for result_directory in input_path.iterdir():
     with open(master_instance_path, 'r') as file:
         master_instance = decode_master_instance(json.load(file))
     
-    instance_analysis: dict[str, str | int | float] = {
-        'config': config_name,
-        'group': group_name,
-        'instance': instance_name
-    }
-
     # Analisi dell'istanza di input
-    instance_analysis.update(analyze_master_instance(master_instance))
-    instance_data.append(instance_analysis)
+    if config['do_instance_analysis']:
 
-    # Eventuale lettura ed analisi del risultato migliore finora ottenuto
-    best_final_result_path = result_directory.joinpath('best_final_result_so_far.json')
-    if best_final_result_path.exists():
-        with open(best_final_result_path, 'r') as file:
-            best_final_result = decode_final_result(json.load(file))
-        instance_analysis.update(analyze_final_result(master_instance, best_final_result))
+        instance_analysis: dict[str, str | int | float] = {
+            'config': config_name,
+            'group': group_name,
+            'instance': instance_name
+        }
+
+        instance_analysis.update(analyze_master_instance(master_instance))
+        instance_data.append(instance_analysis)
+
+        # Eventuale lettura ed analisi del risultato migliore finora ottenuto
+        best_final_result_path = result_directory.joinpath('best_final_result_so_far.json')
+        if best_final_result_path.exists():
+            with open(best_final_result_path, 'r') as file:
+                best_final_result = decode_final_result(json.load(file))
+            instance_analysis.update(analyze_final_result(master_instance, best_final_result))
 
     # Ciclo che analizza ogni iterazione
     for iteration_path in result_directory.iterdir():
@@ -113,104 +115,107 @@ for result_directory in input_path.iterdir():
         # (es: iter_4 -> 4)
         iteration_index = int(iteration_path.name.split('_')[-1])
 
-        result_analysis: dict[str, str | int | float] = {
-            'config': config_name,
-            'group': group_name,
-            'instance': instance_name,
-            'iteration': iteration_index
-        }
+        if config['do_master_result_analysis']:
 
-        # Eventuale lettura dei file JSON presenti nella carella dell'iterazione
-        # corrente
-        for result_type in ['master', 'final', 'cache_final']:
-            result_path = iteration_path.joinpath(f'{result_type}_result.json')
-            if not result_path.exists():
-                continue
-            
-            with open(result_path, 'r') as file:
-                if result_type == 'master':
-                    result = decode_master_result(json.load(file))
-                else:
-                    result = decode_final_result(json.load(file))
-
-            if isinstance(result, FinalResult):
-                result_type_analysis = analyze_final_result(master_instance, result)
-            else:
-                result_type_analysis = analyze_master_result(master_instance, result)
-            
-            # I nomi delle caratteristiche vengono prefissi dal tipo di
-            # risultato appena letto
-            for key, value in result_type_analysis.items():
-                result_analysis[f'{result_type}_{key}'] = value
-        
-        # Eventuale lettura ed analisi dei file relativi ai core nella carella
-        # dell'iterazione corrente
-        for core_type in ['generalist', 'basic', 'reduced', 'pruned', 'preemptive']:
-            cores_path = iteration_path.joinpath(f'{core_type}_cores.json')
-            if not cores_path.exists():
-                continue
-            
-            with open(cores_path, 'r') as file:
-                cores = decode_cores(json.load(file))
-            
-            core_type_analysis = analyze_cores(master_instance, cores)
-
-            # I nomi delle caratteristiche vengono prefissi dal tipo di core
-            # appena letto
-            for key, value in core_type_analysis.items():
-                result_analysis[f'{core_type}_{key}'] = value
-
-        # Eventuale lettura ed analisi dei file relativi ai log nella carella
-        # dell'iterazione corrente
-        for log_type in ['master', 'cache']:
-            log_path = iteration_path.joinpath(f'{log_type}_log.log')
-            if not log_path.exists():
-                continue
-            log_type_analysis = analyze_log(log_path)
-
-            # I nomi delle caratteristiche vengono prefissi dal tipo di log
-            # appena letto
-            for key, value in log_type_analysis.items():
-                result_analysis[f'{log_type}_{key}'] = value
-
-        # Se almeno un risultato è stato letto ed analizzato
-        if len(result_analysis) > 4:
-            master_result_data.append(result_analysis)
-
-        # Analizza ogni sottoproblema dell'iterazione corrente
-        for day_name in master_instance.days.keys():
-
-            subproblem_result_analysys: dict[str, str | int | float] = {
+            result_analysis: dict[str, str | int | float] = {
                 'config': config_name,
                 'group': group_name,
                 'instance': instance_name,
-                'iteration': iteration_index,
-                'day': day_name
+                'iteration': iteration_index
             }
 
-            # Leggi ed analizza l'istanza di ogni sottoproblema
-            subproblem_instance_path = iteration_path.joinpath(f'subproblem_day_{day_name}_instance.json')
-            if subproblem_instance_path.exists():
-                with open(subproblem_instance_path, 'r') as file:
-                    subproblem_instance = decode_subproblem_instance(json.load(file))
-                subproblem_result_analysys.update(analyze_subproblem_instance(subproblem_instance))
+            # Eventuale lettura dei file JSON presenti nella carella dell'iterazione
+            # corrente
+            for result_type in ['master', 'final', 'cache_final']:
+                result_path = iteration_path.joinpath(f'{result_type}_result.json')
+                if not result_path.exists():
+                    continue
+                
+                with open(result_path, 'r') as file:
+                    if result_type == 'master':
+                        result = decode_master_result(json.load(file))
+                    else:
+                        result = decode_final_result(json.load(file))
+
+                if isinstance(result, FinalResult):
+                    result_type_analysis = analyze_final_result(master_instance, result)
+                else:
+                    result_type_analysis = analyze_master_result(master_instance, result)
+                
+                # I nomi delle caratteristiche vengono prefissi dal tipo di
+                # risultato appena letto
+                for key, value in result_type_analysis.items():
+                    result_analysis[f'{result_type}_{key}'] = value
             
-                # Leggi ed analizza i risultati di ogni sottoproblema (solo se
-                # è presente anche la sua istanza di input)
-                subproblem_result_path = iteration_path.joinpath(f'subproblem_day_{day_name}_result.json')
-                if subproblem_result_path.exists():
-                    with open(subproblem_result_path, 'r') as file:
-                        subproblem_result = decode_subproblem_result(json.load(file))
-                    subproblem_result_analysys.update(analyze_subproblem_result(subproblem_instance, subproblem_result))
-            
-            # Leggi ed analizza i log di ogni sottoproblema
-            subproblem_log_path = iteration_path.joinpath(f'subproblem_day_{day_name}_log.log')
-            if subproblem_log_path.exists():
-                subproblem_result_analysys.update(analyze_log(subproblem_log_path))
-        
+            # Eventuale lettura ed analisi dei file relativi ai core nella carella
+            # dell'iterazione corrente
+            for core_type in ['generalist', 'basic', 'reduced', 'pruned', 'preemptive', 'expanded']:
+                cores_path = iteration_path.joinpath(f'{core_type}_cores.json')
+                if not cores_path.exists():
+                    continue
+                
+                with open(cores_path, 'r') as file:
+                    cores = decode_cores(json.load(file))
+                
+                core_type_analysis = analyze_cores(master_instance, cores)
+
+                # I nomi delle caratteristiche vengono prefissi dal tipo di core
+                # appena letto
+                for key, value in core_type_analysis.items():
+                    result_analysis[f'{core_type}_{key}'] = value
+
+            # Eventuale lettura ed analisi dei file relativi ai log nella carella
+            # dell'iterazione corrente
+            for log_type in ['master', 'cache']:
+                log_path = iteration_path.joinpath(f'{log_type}_log.log')
+                if not log_path.exists():
+                    continue
+                log_type_analysis = analyze_log(log_path)
+
+                # I nomi delle caratteristiche vengono prefissi dal tipo di log
+                # appena letto
+                for key, value in log_type_analysis.items():
+                    result_analysis[f'{log_type}_{key}'] = value
+
             # Se almeno un risultato è stato letto ed analizzato
-            if len(subproblem_result_analysys) > 5:
-                subproblem_result_data.append(subproblem_result_analysys)
+            if len(result_analysis) > 4:
+                master_result_data.append(result_analysis)
+
+        # Analizza ogni sottoproblema dell'iterazione corrente
+        if config['do_subproblem_result_analysis']:
+            for day_name in master_instance.days.keys():
+
+                subproblem_result_analysys: dict[str, str | int | float] = {
+                    'config': config_name,
+                    'group': group_name,
+                    'instance': instance_name,
+                    'iteration': iteration_index,
+                    'day': day_name
+                }
+
+                # Leggi ed analizza l'istanza di ogni sottoproblema
+                subproblem_instance_path = iteration_path.joinpath(f'subproblem_day_{day_name}_instance.json')
+                if subproblem_instance_path.exists():
+                    with open(subproblem_instance_path, 'r') as file:
+                        subproblem_instance = decode_subproblem_instance(json.load(file))
+                    subproblem_result_analysys.update(analyze_subproblem_instance(subproblem_instance))
+                
+                    # Leggi ed analizza i risultati di ogni sottoproblema (solo se
+                    # è presente anche la sua istanza di input)
+                    subproblem_result_path = iteration_path.joinpath(f'subproblem_day_{day_name}_result.json')
+                    if subproblem_result_path.exists():
+                        with open(subproblem_result_path, 'r') as file:
+                            subproblem_result = decode_subproblem_result(json.load(file))
+                        subproblem_result_analysys.update(analyze_subproblem_result(subproblem_instance, subproblem_result))
+                
+                # Leggi ed analizza i log di ogni sottoproblema
+                subproblem_log_path = iteration_path.joinpath(f'subproblem_day_{day_name}_log.log')
+                if subproblem_log_path.exists():
+                    subproblem_result_analysys.update(analyze_log(subproblem_log_path))
+            
+                # Se almeno un risultato è stato letto ed analizzato
+                if len(subproblem_result_analysys) > 5:
+                    subproblem_result_data.append(subproblem_result_analysys)
     
     end = time.perf_counter()
     print(f'done ({end - start:.04}s)')

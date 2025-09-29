@@ -16,7 +16,7 @@ def plot_core_info(master_result_df: pd.DataFrame, results_path: Path, config):
 
         cores_data: dict[str, pd.DataFrame] = {}
 
-        for core_type in ['generalist', 'basic', 'reduced', 'pruned']:
+        for core_type in ['generalist', 'basic', 'reduced', 'pruned', 'expanded']:
             if f'{core_type}_core_number' not in master_iterations or f'{core_type}_average_core_size' not in master_iterations:
                 continue
             
@@ -62,7 +62,8 @@ def plot_core_info(master_result_df: pd.DataFrame, results_path: Path, config):
             'generalist': 'black',
             'basic': 'blue',
             'reduced': 'green',
-            'pruned': 'red'
+            'pruned': 'red',
+            'expanded': 'orange'
         }
 
         average_result_duration = master_iterations['master_average_scheduled_request_duration_per_day']

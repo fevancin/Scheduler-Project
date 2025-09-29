@@ -299,7 +299,7 @@ def solve_instance(
         
         ############################# INIZIO CACHE #############################
 
-        if config['use_cache'] and iteration_index > 2:
+        if config['use_cache_selection_model'] and iteration_index > 2:
 
             # Creazione del modello MILP della cache
             print(f'[iter {iteration_index}] [CACHE] Start cache model creation...', end='')
@@ -362,10 +362,12 @@ def solve_instance(
                 print(f'**************************** [END OF ITERATION {iteration_index:03}] ****************************')
                 break
         
-        if config['use_cache'] and iteration_index > 1:
+        if config['use_true_cache'] and iteration_index > 1:
             previous_cache_day_iterations = get_previous_cache_day_iterations(cache, master_result)
             if len(previous_cache_day_iterations) > 0:
                 print(f'[iter {iteration_index}] [CACHE] Found {len(previous_cache_day_iterations)} days already solved in cache')
+                with open(iteration_path.joinpath(f'true_cache_finds.json'), 'w') as file:
+                    json.dump(previous_cache_day_iterations, file, indent=4)
             else: 
                 print(f'[iter {iteration_index}] [CACHE] No already solved days found in cache')
 
@@ -396,7 +398,7 @@ def solve_instance(
                 return 4
 
             # Copia del risultato del giorno corrente se trovato nella cache
-            if config['use_cache'] and iteration_index > 1 and day_name in previous_cache_day_iterations: # type: ignore
+            if config['use_true_cache'] and iteration_index > 1 and day_name in previous_cache_day_iterations: # type: ignore
 
                 iteration_name: IterationName = previous_cache_day_iterations[day_name] # type: ignore
 
@@ -749,7 +751,7 @@ def solve_instance(
         ############################## FINE CORE ###############################
 
         # Aggiunta dei risultati finali nella cache
-        if config['use_cache']:
+        if config['use_true_cache'] or config['use_cache_selection_model']:
             print(f'[iter {iteration_index}] [CACHE] Adding final result to cache')
             add_final_result_to_cache(cache, master_instance, final_result, iteration_index)
 
@@ -757,7 +759,7 @@ def solve_instance(
         print(f'[iter {iteration_index}] Elapsed {int(total_time_elapsed)}/{config["total_time_limit"]}s in total')
         print(f'[iter {iteration_index}] Master value: {master_result_value}, current subproblem value: {final_result_value}')
         print(f'[iter {iteration_index}] Best solution value so far: {best_final_result_value_so_far}, best subproblem value so far: {best_subproblem_result_value_so_far}')
-        if config['use_cache'] and iteration_index > 2 and best_cache_result_value_so_far is not None:
+        if (config['use_true_cache'] or config['use_cache_selection_model']) and iteration_index > 2 and best_cache_result_value_so_far is not None:
             print(f'[iter {iteration_index}] [CACHE] Current cache solution: {cache_final_result_value}, best cache so far: {best_cache_result_value_so_far} ({best_cache_result_value_so_far - best_subproblem_result_value_so_far} more than the best subproblem)')
         print(f'[iter {iteration_index}] [CORE] Added {len(cores)} \'{config["core_type"]}\' cores in this iteration.')
         
