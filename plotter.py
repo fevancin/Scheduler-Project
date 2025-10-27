@@ -14,6 +14,7 @@ from src.plotters.cores import plot_core_info, plot_core_gantt
 from src.plotters.solving_times import plot_solving_times
 from src.plotters.solving_times_by_day import plot_solving_times_by_day
 from src.plotters.requests_per_patient import plot_requests_per_patient
+from src.plotters.aggregate_best_solution_value import plot_aggregate_best_solution_value
 from src.plotters.equal_requests_between_iterations import plot_equal_requests_between_iterations
 
 if __name__ != '__main__':
@@ -180,7 +181,7 @@ if 'best_instance' in config['plots_to_do'] or 'best_instance_subproblems' in co
                 with open(cores_path, 'r') as file:
                     cores = decode_cores(json.load(file))
                 
-                core_days = set(core.day for core in cores)
+                core_days = set([core.day[0] for core in cores])
                 all_subproblem_result: dict[DayName, FatSubproblemResult] | dict[DayName, SlimSubproblemResult] = {}
 
                 for day_name in core_days:
@@ -194,7 +195,7 @@ if 'best_instance' in config['plots_to_do'] or 'best_instance_subproblems' in co
                 iteration_plots_path.mkdir(exist_ok=True)
                 
                 plot_core_gantt(master_instance, cores, iteration_plots_path, all_subproblem_result,
-                    f'Core of instance \'{instance_name}\' of group \'{group_name}\' solved with \'{config_name}\' (day {day_name})')
+                    f'Core of instance \'{instance_name}\' of group \'{group_name}\' solved with \'{config_name}\'')
                 
                 iteration_index += 1
                 iteration_path = result_directory.joinpath(f'iter_{iteration_index}')
@@ -230,5 +231,9 @@ if 'requests_per_patient' in config['plots_to_do']:
 if 'equal_requests_between_iterations' in config['plots_to_do']:
     print('Plotting \'equal_requests_between_iterations\'')
     plot_equal_requests_between_iterations(input_path, config)
+
+if 'aggregate_best_solution_value' in config['plots_to_do']:
+    print('Plotting \'aggregate_best_solution_value\'')
+    plot_aggregate_best_solution_value(master_result_df, input_path, config)
 
 print('Plotting process done')

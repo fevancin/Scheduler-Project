@@ -340,9 +340,9 @@ def decode_cores(obj) -> list[FatCore] | list[SlimCore]:
     for core_obj in obj:
         
         if is_fat:
-            core = FatCore(core_obj['day'])
+            core = FatCore(core_obj['days'])
         else:
-            core = SlimCore(core_obj['day'])
+            core = SlimCore(core_obj['days'])
 
         for reason in core_obj['reason']:
             if is_fat:
