@@ -2,6 +2,7 @@
 # presenti nel template di base saranno sovrascritte. La chiave dell'oggetto
 # diventerà il nome della cartella del gruppo.
 groups:
+
     32pat_4cu_2op:
         seed: 100
         patient_number: 32

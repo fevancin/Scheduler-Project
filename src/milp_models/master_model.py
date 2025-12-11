@@ -1,7 +1,7 @@
 import pyomo.environ as pyo
 from src.common.custom_types import MasterInstance, PatientName, ServiceName, DayName, TimeSlot
 from src.common.custom_types import SlimMasterResult, PatientService, PatientServiceWindow, FatMasterResult
-from src.common.custom_types import PatientServiceOperator, FatCore, SlimCore, Window
+from src.common.custom_types import PatientServiceOperator, FatCore, SlimCore, Window, FatSubproblemResult
 
 def get_slim_master_model(instance: MasterInstance, additional_info: list[str]) -> pyo.ConcreteModel:
 
@@ -93,6 +93,23 @@ def get_slim_master_model(instance: MasterInstance, additional_info: list[str]) 
     # L'obiettivo è massimizzare la durata delle richieste svolte, pesate per la
     # priorità dei pazienti
     
+    if 'use_optimality_cuts' in additional_info:
+
+        model.day_index = pyo.Set(initialize=sorted(instance.days.keys())) # type: ignore
+        model.optimality_cuts = pyo.ConstraintList() # type: ignore
+        model.day_solution_component = pyo.Var(model.day_index, domain=pyo.NonNegativeIntegers) # type: ignore
+
+        @model.Constraint(model.day_index) # type: ignore
+        def day_solution_component_constraint(model, d):
+
+            tuple_list = [(p, s) for p, s, dd in model.do_index if d == dd]
+            
+            if len(tuple_list) == 0:
+                return model.day_solution_constraint[d] == 0
+            
+            return model.day_solution_component[d] == pyo.quicksum(
+                model.do[p, s, d] * instance.services[s].duration * instance.patients[p].priority for p, s in tuple_list)
+    
     if 'minimize_hospital_accesses' in additional_info:
         
         model.pat_uses_day = pyo.Var(model.pat_days_index, domain=pyo.Binary) # type: ignore
@@ -100,15 +117,27 @@ def get_slim_master_model(instance: MasterInstance, additional_info: list[str]) 
         @model.Constraint(model.do_index) # type: ignore
         def link_do_to_pat_uses_day_variables(model, p, s, d):
             return model.do[p, s, d] <= model.pat_uses_day[p, d]
+        
+        @model.Constraint(model.pat_days_index) # type: ignore
+        def link_do_to_pat_uses_day_variables(model, p, d):
+            return model.pat_uses_day[p, d] <= pyo.quicksum(
+                model.do[p, s, d] for pp, s, dd in model.do_index if p == pp and d == dd)
     
         @model.Objective(sense=pyo.maximize) # type: ignore
         def objective_function(model): # type: ignore
             return (pyo.quicksum(model.window[p, s, start, end] * instance.services[s].duration * instance.patients[p].priority for p, s, start, end in model.window_index)
-                    - 1.0 / len(model.pat_days_index) * pyo.quicksum(model.pat_uses_day[p, d] for p, d in model.pat_days_index))
+                    # - 1.0 / len(model.pat_days_index) * pyo.quicksum(model.pat_uses_day[p, d] for p, d in model.pat_days_index))
+                    
+                    + (1.0 / len(model.do_index)) * (  pyo.quicksum(model.do[p, s, d] for p, s, d, in model.do_index)
+                                                     - pyo.quicksum(model.pat_uses_day[p, d] for p, d in model.pat_days_index)
+                                                    )
+                    )
+    
     else:
         @model.Objective(sense=pyo.maximize) # type: ignore
         def objective_function(model):
             return pyo.quicksum(model.window[p, s, start, end] * instance.services[s].duration * instance.patients[p].priority for p, s, start, end in model.window_index)
+
 
     return model # type: ignore
 
@@ -127,6 +156,39 @@ def add_core_constraints_to_slim_master_model(model: pyo.ConcreteModel, cores: l
             expr += model.do[p, s, d] # type: ignore
         
         model.cores.add(expr=expr <= len(core.components)) # type: ignore
+
+def add_optimality_cuts(model: pyo.ConcreteModel, subproblem_results: dict[DayName, FatSubproblemResult], instance: MasterInstance):
+
+    for day_name, subproblem_result in subproblem_results.items():
+
+        # Il sottoproblema deve avere rifiutato almeno una richiesta
+        # perché il taglio abbia senso
+        if len(subproblem_result.rejected) <= 0:
+            continue
+
+        # Somma delle durate dei servizi svolti questo giorno
+        solution_value = sum(instance.services[request.service_name].duration for request in subproblem_result.scheduled)
+        
+        # Lista di coppie (p,s) di ogni servizio chiesto questo giorno (anche se non è stato soddisfatto)
+        satisfied_patient_service_tuples = [(request.patient_name, request.service_name) for request in subproblem_result.scheduled]
+        satisfied_patient_service_tuples.extend([(request.patient_name, request.service_name) for request in subproblem_result.rejected])
+
+        # Lista di coppie (p,s) di ogni possibile richiesta che il master potrebbe chiedere in questo giorno
+        all_patient_service_tuples = []
+        for patient_name, patient in instance.patients.items():
+            for service_name, windows in patient.requests.items():
+                for window in windows:
+                    if window.start <= day_name and window.end >= day_name:
+                        all_patient_service_tuples.append((patient_name, service_name))
+
+        # Durata totale di tutte le richieste possibili questo giorno (usato per big M nel vincolo)
+        max_total_service_duration = sum(instance.services[service_name].duration for _, service_name in all_patient_service_tuples)
+
+        model.optimality_cuts.add(expr=
+            model.day_solution_component[day_name] <= solution_value +
+                                                    (max_total_service_duration - solution_value) * pyo.quicksum(
+                                                    model.do[p, s, day_name] for p, s in all_patient_service_tuples if (p, s) not in satisfied_patient_service_tuples))
+
 
 def get_result_from_slim_master_model(model: pyo.ConcreteModel) -> SlimMasterResult:
 

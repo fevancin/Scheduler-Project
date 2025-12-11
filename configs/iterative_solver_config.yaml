@@ -78,6 +78,12 @@ base:
             # giorni. Questa flag impatta anche sul calcolo della cache
             # provocando instabilità
             # 'minimize_hospital_accesses'
+
+            # Opzione che aggiunge i tagli di ottimalità, ovvero quelli che
+            # specificano che non si può ottenere meglio di qualcosa se sono presenti
+            # almento tanti zeri quanti quelli dell'iterazione che li genera
+            # *** IMPLEMENTATO SOLO PER SLIM MASTER ***
+            'use_optimality_cuts'
         ]
     
     # Informazioni relative al solutore del sottoproblema
