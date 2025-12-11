@@ -53,9 +53,12 @@ base:
     # partire da quello correntemente analizzato
     max_single_core_expansion: 32
 
-    # Flag che controll l'utilizzo della cache per ottenere soluzioni da
+    # Flag che controlla l'utilizzo della cache per ottenere soluzioni da
     # risultati precedenti
-    use_cache: false
+    use_true_cache: false
+
+    # Opzione che controlla l'utilizzo del modello di selezione delle colonne della matrice della cache
+    use_cache_selection_model: false
 
     # Numero massimo di iterazioni da eseguire
     max_iteration: 50
@@ -77,7 +80,7 @@ base:
             # Penalizza in funzione obiettivo i pazienti che utilizzano tanti
             # giorni. Questa flag impatta anche sul calcolo della cache
             # provocando instabilità
-            # 'minimize_hospital_accesses'
+            'minimize_hospital_accesses',
 
             # Opzione che aggiunge i tagli di ottimalità, ovvero quelli che
             # specificano che non si può ottenere meglio di qualcosa se sono presenti
